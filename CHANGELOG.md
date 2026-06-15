@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1](https://github.com/zseta/progi/compare/v0.2.0...v0.2.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* bundle alembic/ inside the package ([#6](https://github.com/zseta/progi/issues/6)) ([9065c58](https://github.com/zseta/progi/commit/9065c581edfd0daa961ed4fd658c0295211255dc))
+
 ## [0.2.0](https://github.com/zseta/progi/compare/v0.1.2...v0.2.0) (2026-06-15)
 
 
