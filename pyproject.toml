@@ -29,7 +29,7 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/zseta/progi"
+Homepage = "https://progi.dev/"
 Repository = "https://github.com/zseta/progi"
 "Bug Tracker" = "https://github.com/zseta/progi/issues"
 
