@@ -1,6 +1,6 @@
 [project]
 name = "progi"
-version = "0.1.2"
+version = "0.2.0"
 description = "An MCP-native workflow engine that teaches your agent how you like to get things done."
 readme = "README.md"
 requires-python = ">=3.11"
