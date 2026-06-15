@@ -2,77 +2,53 @@
 
 ## Overview
 
-Publishing to PyPI is automated via GitHub Actions. Pushing a `v*` tag triggers the publish workflow. There is no manual `uv publish` step.
+Releases are managed by [Release Please](https://github.com/googleapis/release-please). After merging commits to `main`, Release Please opens a Release PR that updates `CHANGELOG.md` and bumps the version in `pyproject.toml`. Merging that PR creates a GitHub Release and tag, which triggers the PyPI publish workflow automatically.
 
-## Steps
+**You do not manually edit `CHANGELOG.md` or bump the version** — Release Please does both.
 
-### 1. Make your changes
+## How it works
 
-Do your work on `main` (or merge a PR into `main`).
-
-### 2. Update the version
-
-In `pyproject.toml`:
-
-```toml
-version = "0.2.0"
+```
+commit to main → Release Please updates Release PR → merge PR → GitHub Release created → PyPI publish triggered
 ```
 
-Follow [Semantic Versioning](https://semver.org/):
+1. Push commits to `main` using [Conventional Commits](#conventional-commits)
+2. Release Please opens (or updates) a Release PR with a changelog and version bump
+3. Review the PR, then merge it when ready to release
+4. Release Please creates a GitHub Release and tag (`v*`)
+5. The publish workflow triggers on the new release and publishes to PyPI
 
-| Change | Bump |
-|---|---|
-| Bug fixes, metadata-only changes | Patch (`0.1.0` → `0.1.1`) |
-| New features, backwards-compatible | Minor (`0.1.0` → `0.2.0`) |
-| Breaking changes | Major (`0.1.0` → `1.0.0`) |
+## Conventional Commits
 
-### 3. Update CHANGELOG.md
+Release Please reads commit messages to determine the version bump and generate the changelog. Use this format:
 
-Add a new section at the top (above the previous release):
-
-```markdown
-## [0.2.0] - YYYY-MM-DD
-
-### Added
-- ...
-
-### Changed
-- ...
-
-### Fixed
-- ...
-
-[0.2.0]: https://github.com/zseta/progi/releases/tag/v0.2.0
+```
+<type>: <description>
 ```
 
-### 4. Commit
+| Commit message | Version bump | Changelog section |
+|---|---|---|
+| `feat: add workflow export` | Minor | Features |
+| `fix: handle missing step` | Patch | Bug Fixes |
+| `feat!: rename task API` or `BREAKING CHANGE:` in body | Major | ⚠ Breaking Changes |
+| `chore:`, `docs:`, `refactor:`, `test:` | None (no release PR update) | — |
 
-```bash
-git add pyproject.toml CHANGELOG.md
-git commit -m "chore: release v0.2.0"
-```
+## Workflows
 
-### 5. Tag and push
+**`.github/workflows/release-please.yml`** — runs on every push to `main`:
+- Opens or updates the Release PR
+- Creates a GitHub Release when the Release PR is merged
 
-```bash
-git tag v0.2.0
-git push origin main --tags
-```
-
-Pushing the `v*` tag triggers the publish workflow automatically.
-
-## What the workflow does
-
-`.github/workflows/publish.yml` runs on any `v*` tag:
-
-1. Builds the source distribution and wheel via `uv build`
-2. Validates the dist artifacts with `twine check`
+**`.github/workflows/publish.yml`** — runs when a GitHub Release is published:
+1. Builds source distribution and wheel via `uv build`
+2. Validates artifacts with `twine check`
 3. Publishes to PyPI using trusted publishing (no API token needed)
 
-CI (`.github/workflows/ci.yml`) runs lint + tests on every push to `main` and on pull requests — make sure it passes before tagging.
+**`.github/workflows/ci.yml`** — runs on every push to `main` and PRs:
+- Lint (`ruff check`)
+- Tests (`python -m pytest`)
 
-## PyPI metadata
+## One-time GitHub setup
 
-All package metadata lives in `pyproject.toml` under `[project]`.
-
-`version` — bump this each release
+Enable "Allow GitHub Actions to create and approve pull requests" in:
+`Settings → Actions → General → Workflow permissions`
