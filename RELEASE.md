@@ -12,26 +12,11 @@ Releases are managed by [Release Please](https://github.com/googleapis/release-p
 commit to main → Release Please updates Release PR → merge PR → GitHub Release created → PyPI publish triggered
 ```
 
-1. Push commits to `main` using [Conventional Commits](#conventional-commits)
-2. Release Please opens (or updates) a Release PR with a changelog and version bump
+1. Merge PRs to `main` using **squash merge** — edit the squash commit message to follow [Conventional Commits](https://www.conventionalcommits.org/) format (`feat:`, `fix:`, `feat!:` etc.). This is what Release Please reads to determine the version bump and changelog entry.
+2. Release Please opens (or updates) a Release PR with the changelog and version bump
 3. Review the PR, then merge it when ready to release
 4. Release Please creates a GitHub Release and tag (`v*`)
 5. The publish workflow triggers on the new release and publishes to PyPI
-
-## Conventional Commits
-
-Release Please reads commit messages to determine the version bump and generate the changelog. Use this format:
-
-```
-<type>: <description>
-```
-
-| Commit message | Version bump | Changelog section |
-|---|---|---|
-| `feat: add workflow export` | Minor | Features |
-| `fix: handle missing step` | Patch | Bug Fixes |
-| `feat!: rename task API` or `BREAKING CHANGE:` in body | Major | ⚠ Breaking Changes |
-| `chore:`, `docs:`, `refactor:`, `test:` | None (no release PR update) | — |
 
 ## Workflows
 
@@ -48,7 +33,3 @@ Release Please reads commit messages to determine the version bump and generate 
 - Lint (`ruff check`)
 - Tests (`python -m pytest`)
 
-## One-time GitHub setup
-
-Enable "Allow GitHub Actions to create and approve pull requests" in:
-`Settings → Actions → General → Workflow permissions`
