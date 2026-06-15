@@ -2,7 +2,7 @@
 
 /* Scan the Jinja templates so Tailwind only emits the utility classes actually
    used. Path is relative to this file (frontend/input.css). */
-@source "../src/progi/web/templates/**/*.html";
+@source "../progi/web/templates/**/*.html";
 
 /* Don't scan the binaries / bundles sitting next to this file. */
 @source not "./tailwindcss";
