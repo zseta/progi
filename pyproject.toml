@@ -1,10 +1,22 @@
 [project]
 name = "progi"
-version = "0.1.0"
+version = "0.1.1"
 description = "An MCP-native workflow engine that teaches your agent how you like to get things done."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+keywords = ["mcp", "workflow", "agent", "automation", "llm", "workflow-engine"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Intended Audience :: Developers",
+]
 dependencies = [
     "fastmcp>=2.0",
     "fastapi>=0.115",
@@ -15,6 +27,11 @@ dependencies = [
     "alembic>=1.13",
     "platformdirs>=4.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/zseta/progi"
+Repository = "https://github.com/zseta/progi"
+"Bug Tracker" = "https://github.com/zseta/progi/issues"
 
 [project.optional-dependencies]
 dev = [
