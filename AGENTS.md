@@ -171,3 +171,6 @@ uv run ruff check progi              # lint
 
 `progi` (MCP + web), `progi --no-web` (MCP only), `progi-web` (web only).
 Config via env: `PROGI_DB_PATH`, `PROGI_WEB_HOST`, `PROGI_WEB_PORT`, `PROGI_NO_WEB`.
+
+## Git commit convention
+Commit messages must follow Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`. Use `feat!:` for breaking changes. Release Please reads these to generate the changelog and determine the version bump.

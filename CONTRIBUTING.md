@@ -3,7 +3,7 @@
 ## Before submitting a PR
 Run this:
 ```bash
-uv run ruff check src
+uv run ruff check progi
 uv run python -m pytest
 ```
 
