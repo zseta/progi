@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0](https://github.com/zseta/progi/compare/v0.1.2...v0.2.0) (2026-06-15)
+
+
+### Features
+
+* add favicon ([a500a91](https://github.com/zseta/progi/commit/a500a919c3aabca63b1853e5ea346c3c5ff65077))
+* auto-run Alembic migrations on startup ([19fe3b5](https://github.com/zseta/progi/commit/19fe3b5b5042a9f4e9a97ea0bf91899ff4643d00))
+
+
+### Documentation
+
+* add workflow authoring example ([d5cafb1](https://github.com/zseta/progi/commit/d5cafb1612b3ca97fbe2a7adf257e9acf870bfd3))
+* keep commit messages short ([42a4641](https://github.com/zseta/progi/commit/42a46418d0d96966528fad7a53f4ad29c7c79cbd))
+
 ## [0.1.2](https://github.com/zseta/progi/compare/v0.1.1...v0.1.2) (2026-06-15)
 
 
