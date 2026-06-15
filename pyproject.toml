@@ -1,0 +1,50 @@
+[project]
+name = "progi"
+version = "0.1.0"
+description = "An MCP-native workflow engine that teaches your agent how you like to get things done."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "fastmcp>=2.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",   # required for FastAPI Form() parsing
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "pytest>=8.0",
+    "httpx>=0.27",               # for testing FastAPI routes
+    "mcp[cli]>=1.27.2",
+]
+
+[project.scripts]
+# Bundled: MCP (stdio, foreground) + web (background thread). --no-web for MCP only.
+progi = "progi.cli:main"
+# Standalone web server only.
+progi-web = "progi.web.app:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["progi"]
+
+[tool.uv]
+package = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[dependency-groups]
+dev = [
+    "rust-just>=1.52.0",
+]

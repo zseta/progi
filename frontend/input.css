@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/* Scan the Jinja templates so Tailwind only emits the utility classes actually
+   used. Path is relative to this file (frontend/input.css). */
+@source "../src/progi/web/templates/**/*.html";
+
+/* Don't scan the binaries / bundles sitting next to this file. */
+@source not "./tailwindcss";
+
+/* ── Design tokens ──────────────────────────────────────────────────────────
+   Single source of truth for the Resend-style dark aesthetic.
+   Change values here; every page picks them up automatically.
+   ────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-surface-0:    #000000;
+  --color-surface-1:    #0a0a0a;
+  --color-surface-2:    #111111;
+  --color-surface-3:    #1a1a1a;
+  --color-border:       rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.14);
+  --color-text-primary:   #fafafa;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted:     #71717a;
+  --color-text-faint:     #52525b;
+  --color-text-ghost:     #3f3f46;
+  --color-accent:     #00a3ff;
+  --color-accent-dim: rgba(0, 163, 255, 0.15);
+  --font-sans: "Inter", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "Cascadia Code", monospace;
+}
+
+/* ── Semantic utility classes ───────────────────────────────────────────────
+   Use these in templates instead of raw hex values.
+   Background surfaces: bg-surface-{0-3}
+   Text shades:         text-primary / text-secondary / text-muted / text-faint / text-ghost
+   Borders:             border-subtle / border-subtle-hover (apply with hover:)
+   Accent:              text-accent / bg-accent / border-accent / bg-accent-dim
+   ────────────────────────────────────────────────────────────────────────── */
+@utility bg-surface-0    { background-color: var(--color-surface-0); }
+@utility bg-surface-1    { background-color: var(--color-surface-1); }
+@utility bg-surface-2    { background-color: var(--color-surface-2); }
+@utility bg-surface-3    { background-color: var(--color-surface-3); }
+
+@utility text-primary    { color: var(--color-text-primary); }
+@utility text-secondary  { color: var(--color-text-secondary); }
+@utility text-muted      { color: var(--color-text-muted); }
+@utility text-faint      { color: var(--color-text-faint); }
+@utility text-ghost      { color: var(--color-text-ghost); }
+
+@utility border-subtle       { border-color: var(--color-border); }
+@utility border-subtle-hover { border-color: var(--color-border-hover); }
+
+@utility text-accent    { color: var(--color-accent); }
+@utility bg-accent      { background-color: var(--color-accent); }
+@utility border-accent  { border-color: var(--color-accent); }
+@utility bg-accent-dim  { background-color: var(--color-accent-dim); }
+
+/* Hide Alpine-managed elements before Alpine initializes (prevents flash). */
+[x-cloak] { display: none !important; }
+
+/* ── Prose / markdown rendering ─────────────────────────────────────────────
+   Applied to divs that contain marked.parse() output. Tailwind v4 doesn't
+   bundle @tailwindcss/typography, so we roll our own scoped styles here.
+   ────────────────────────────────────────────────────────────────────────── */
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+.prose h1 { font-size: 1.25em; }
+.prose h2 { font-size: 1.1em; }
+.prose h3 { font-size: 1em; }
+.prose p  { margin-top: 0.5em; margin-bottom: 0.5em; color: var(--color-text-secondary); }
+.prose ul, .prose ol { padding-left: 1.5em; margin-top: 0.5em; margin-bottom: 0.5em; color: var(--color-text-secondary); }
+.prose ul { list-style-type: disc; }
+.prose ol { list-style-type: decimal; }
+.prose li { margin-top: 0.25em; margin-bottom: 0.25em; }
+.prose strong { color: var(--color-text-primary); font-weight: 600; }
+.prose em { font-style: italic; }
+.prose code {
+  font-family: var(--font-mono);
+  background-color: var(--color-surface-3);
+  border-radius: 0.25em;
+  padding: 0.1em 0.3em;
+  font-size: 0.85em;
+}
+.prose pre {
+  background-color: var(--color-surface-3);
+  border-radius: 0.5em;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+  margin-top: 0.75em;
+  margin-bottom: 0.75em;
+}
+.prose pre code { background: none; padding: 0; }
+.prose blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 1em;
+  color: var(--color-text-muted);
+  font-style: italic;
+  margin: 0.75em 0;
+}
+.prose a { color: var(--color-accent); text-decoration: underline; }
+.prose hr { border-color: var(--color-border); margin: 1em 0; }
+.prose :first-child { margin-top: 0; }
+.prose :last-child  { margin-bottom: 0; }

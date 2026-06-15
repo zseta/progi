@@ -1,0 +1,85 @@
+{#
+  Partial: the read-only kanban board. Returned standalone by GET /board so
+  AlpineAJAX can refresh just this fragment. The id matches the x-target used by
+  triggering elements.
+
+  Components: PenguinUI-style cards (https://www.penguinui.com/components/card)
+  and badges (https://www.penguinui.com/components/badge).
+#}
+{% set columns = [("todo", "To do"), ("in_progress", "In progress"), ("done", "Done")] %}
+<div id="board" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+  {% for key, label in columns %}
+
+    {# ── Column ────────────────────────────────────────────────────── #}
+    <div class="rounded-xl border border-subtle bg-surface-1 p-4 flex flex-col gap-3">
+
+      {# Column header #}
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs tracking-widest uppercase font-semibold
+          {% if key == 'todo' %}text-secondary
+          {% elif key == 'in_progress' %}text-accent
+          {% else %}text-faint{% endif %}">
+          {{ label }}
+        </h3>
+        {# PenguinUI soft badge — count pill #}
+        <span class="inline-flex items-center rounded-full px-2 py-0.5
+          text-xs font-medium tabular-nums
+          bg-surface-3 text-faint">
+          {{ board[key] | length }}
+        </span>
+      </div>
+
+      {# Task cards #}
+      <div class="flex flex-col gap-2">
+        {% if not board[key] %}
+          <p class="text-xs text-ghost py-6 text-center select-none">—</p>
+        {% else %}
+          {% for task in board[key] %}
+
+            {# PenguinUI-style card: <article> wrapper, inner content div #}
+            <article
+              class="rounded-lg border border-subtle bg-surface-2 p-3
+                hover:border-subtle-hover hover:bg-surface-3 transition-colors duration-150 cursor-pointer"
+              @click="openTask({{ task.id }})"
+            >
+              <div class="flex flex-col gap-1.5">
+
+                {# Task name #}
+                <h4 class="text-sm font-medium text-primary leading-snug">
+                  {{ task.name }}
+                </h4>
+
+                {# Workflow badge — PenguinUI badge with indicator dot #}
+                <div class="flex items-center gap-1.5">
+                  <span class="inline-flex items-center gap-1 rounded-full
+                    px-2 py-0.5 text-xs font-medium
+                    bg-accent-dim text-accent">
+                    {{ task.workflow_name }}
+                  </span>
+                </div>
+
+                {# Current step (only when not done) #}
+                {% if task.status != "done" and task.current_step_name %}
+                  <p class="text-xs text-muted">
+                    <span class="text-ghost">step</span> {{ task.current_step_name }}
+                  </p>
+                {% endif %}
+
+                {# Progress notes #}
+                {% if task.progress_notes %}
+                  <p class="text-xs italic text-faint leading-relaxed">
+                    {{ task.progress_notes }}
+                  </p>
+                {% endif %}
+
+              </div>
+            </article>
+
+          {% endfor %}
+        {% endif %}
+      </div>
+
+    </div>
+  {% endfor %}
+</div>

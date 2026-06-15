@@ -1,0 +1,196 @@
+<script type="application/json" id="step-detail-data">{{ {"workflowId": workflow.id, "stepId": step.id, "stepName": step.name, "inputSpec": step.input_spec, "outputSpec": step.output_spec, "playbook": (step.playbook or ""), "prevSteps": prev_steps, "nextSteps": next_steps} | tojson }}</script>
+<div
+  id="step-detail"
+  x-data="stepDetail()"
+  x-init="init()"
+  class="flex flex-col min-h-0 flex-1"
+>
+
+  {# Header #}
+  <header class="flex items-center justify-between px-6 py-4 border-b border-subtle shrink-0">
+    <h2 class="text-sm font-semibold text-primary" x-text="stepName"></h2>
+    <button
+      type="button"
+      @click="$dispatch('close-modal')"
+      class="size-7 flex items-center justify-center rounded-lg text-faint hover:text-primary hover:bg-surface-3 transition-colors"
+    >✕</button>
+  </header>
+
+  {# Body — scrollable #}
+  <div class="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-6">
+
+    {# Input spec #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Input spec</p>
+      {# Display mode #}
+      <div x-show="!editing.input_spec" class="relative group">
+        <pre class="text-xs text-secondary bg-surface-1 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(inputSpec, null, 2)"></pre>
+        <button
+          @click="startEdit('input_spec', JSON.stringify(inputSpec, null, 2))"
+          class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-6 flex items-center justify-center rounded text-faint hover:text-primary hover:bg-surface-3"
+          title="Edit"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </div>
+      {# Edit mode #}
+      <div x-show="editing.input_spec" class="flex flex-col gap-2">
+        <textarea
+          x-model="drafts.input_spec"
+          class="text-xs text-secondary bg-surface-1 rounded-lg p-3 w-full font-mono resize-y border border-subtle focus:outline-none focus:border-accent"
+          rows="6"
+        ></textarea>
+        <p x-show="errors.input_spec" class="text-xs text-red-400" x-text="errors.input_spec"></p>
+        <div class="flex gap-2">
+          <button @click="saveEdit('input_spec')" class="size-6 flex items-center justify-center rounded text-green-400 hover:bg-surface-3" title="Save">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button @click="cancelEdit('input_spec')" class="size-6 flex items-center justify-center rounded text-red-400 hover:bg-surface-3" title="Discard">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    {# Output spec #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Output spec</p>
+      {# Display mode #}
+      <div x-show="!editing.output_spec" class="relative group">
+        <pre class="text-xs text-secondary bg-surface-1 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(outputSpec, null, 2)"></pre>
+        <button
+          @click="startEdit('output_spec', JSON.stringify(outputSpec, null, 2))"
+          class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-6 flex items-center justify-center rounded text-faint hover:text-primary hover:bg-surface-3"
+          title="Edit"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </div>
+      {# Edit mode #}
+      <div x-show="editing.output_spec" class="flex flex-col gap-2">
+        <textarea
+          x-model="drafts.output_spec"
+          class="text-xs text-secondary bg-surface-1 rounded-lg p-3 w-full font-mono resize-y border border-subtle focus:outline-none focus:border-accent"
+          rows="6"
+        ></textarea>
+        <p x-show="errors.output_spec" class="text-xs text-red-400" x-text="errors.output_spec"></p>
+        <div class="flex gap-2">
+          <button @click="saveEdit('output_spec')" class="size-6 flex items-center justify-center rounded text-green-400 hover:bg-surface-3" title="Save">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button @click="cancelEdit('output_spec')" class="size-6 flex items-center justify-center rounded text-red-400 hover:bg-surface-3" title="Discard">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    {# Previous steps #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Previous steps</p>
+      <template x-if="prevSteps.length > 0">
+        <div class="flex flex-col gap-2">
+          <template x-for="s in prevSteps" :key="s.id">
+            <div class="flex items-start gap-3 rounded-lg bg-surface-1 px-3 py-2">
+              <span class="text-accent text-xs mt-0.5">←</span>
+              <div>
+                <a
+                  href="#"
+                  @click.prevent="navigateStep(s.id)"
+                  class="text-xs text-accent font-medium hover:underline cursor-pointer"
+                  x-text="s.name"
+                ></a>
+                <template x-if="s.condition">
+                  <p class="text-xs text-muted mt-0.5"
+                    x-text="`when ${s.condition.field} ${s.condition.operator} ${JSON.stringify(s.condition.value)}`">
+                  </p>
+                </template>
+                <template x-if="!s.condition">
+                  <p class="text-xs text-ghost mt-0.5">unconditional</p>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+      <template x-if="prevSteps.length === 0">
+        <p class="text-xs text-ghost italic">Entry step — no previous steps.</p>
+      </template>
+    </section>
+
+    {# Next steps #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Next steps</p>
+      <template x-if="nextSteps.length > 0">
+        <div class="flex flex-col gap-2">
+          <template x-for="s in nextSteps" :key="s.id">
+            <div class="flex items-start gap-3 rounded-lg bg-surface-1 px-3 py-2">
+              <span class="text-accent text-xs mt-0.5">→</span>
+              <div>
+                <a
+                  href="#"
+                  @click.prevent="navigateStep(s.id)"
+                  class="text-xs text-accent font-medium hover:underline cursor-pointer"
+                  x-text="s.name"
+                ></a>
+                <template x-if="s.condition">
+                  <p class="text-xs text-muted mt-0.5"
+                    x-text="`when ${s.condition.field} ${s.condition.operator} ${JSON.stringify(s.condition.value)}`">
+                  </p>
+                </template>
+                <template x-if="!s.condition">
+                  <p class="text-xs text-ghost mt-0.5">unconditional</p>
+                </template>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+      <template x-if="nextSteps.length === 0">
+        <p class="text-xs text-ghost italic">Terminal step — task completes here.</p>
+      </template>
+    </section>
+
+    {# Playbook #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Playbook</p>
+      {# Display mode — rendered markdown #}
+      <div x-show="!editing.playbook" class="relative group">
+        <template x-if="playbook">
+          <div
+            class="prose prose-sm prose-invert max-w-none text-xs bg-surface-1 rounded-lg p-3"
+            x-html="renderMarkdown(playbook)"
+          ></div>
+        </template>
+        <template x-if="!playbook">
+          <p class="text-xs text-ghost italic">No playbook defined for this step.</p>
+        </template>
+        <button
+          @click="startEdit('playbook', playbook)"
+          class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-6 flex items-center justify-center rounded text-faint hover:text-primary hover:bg-surface-3"
+          title="Edit"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </div>
+      {# Edit mode — raw textarea #}
+      <div x-show="editing.playbook" class="flex flex-col gap-2">
+        <textarea
+          x-model="drafts.playbook"
+          class="text-xs text-secondary bg-surface-1 rounded-lg p-3 w-full font-mono resize-y border border-subtle focus:outline-none focus:border-accent"
+          rows="12"
+          placeholder="Write markdown here…"
+        ></textarea>
+        <div class="flex gap-2">
+          <button @click="saveEdit('playbook')" class="size-6 flex items-center justify-center rounded text-green-400 hover:bg-surface-3" title="Save">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button @click="cancelEdit('playbook')" class="size-6 flex items-center justify-center rounded text-red-400 hover:bg-surface-3" title="Discard">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>

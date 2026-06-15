@@ -1,0 +1,116 @@
+<script type="application/json" id="task-detail-data">{{ {"task": task, "stepInstances": step_instances} | tojson }}</script>
+<div
+  id="task-detail"
+  x-data="taskDetail()"
+  x-init="init()"
+  class="flex flex-col min-h-0 flex-1"
+>
+
+  {# Header #}
+  <header class="flex items-center justify-between px-6 py-4 border-b border-subtle shrink-0">
+    <div class="flex items-center gap-3 min-w-0">
+      <h2 class="text-sm font-semibold text-primary truncate" x-text="task.name"></h2>
+      {# Status badge #}
+      <span
+        class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
+        :class="{
+          'bg-surface-3 text-faint':          task.status === 'todo',
+          'bg-accent-dim text-accent':        task.status === 'in_progress',
+          'bg-green-900/40 text-green-400':   task.status === 'done',
+        }"
+        x-text="task.status === 'in_progress' ? 'In progress' : task.status === 'todo' ? 'To do' : 'Done'"
+      ></span>
+    </div>
+    <button
+      type="button"
+      @click="$dispatch('close-modal')"
+      class="size-7 flex items-center justify-center rounded-lg text-faint hover:text-primary hover:bg-surface-3 transition-colors shrink-0"
+    >✕</button>
+  </header>
+
+  {# Body — scrollable #}
+  <div class="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-6">
+
+    {# Workflow + meta #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Workflow</p>
+      <div class="flex items-center gap-1.5">
+        <span class="text-xs text-secondary" x-text="task.workflow_name"></span>
+        <a
+          :href="`/workflows/${task.workflow_id}`"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-faint hover:text-primary transition-colors"
+          title="Open workflow"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+            <polyline points="15 3 21 3 21 9"/>
+            <line x1="10" y1="14" x2="21" y2="3"/>
+          </svg>
+        </a>
+      </div>
+    </section>
+
+    {# Progress notes #}
+    <template x-if="task.progress_notes">
+      <section>
+        <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Progress notes</p>
+        <p class="text-xs italic text-secondary leading-relaxed" x-text="task.progress_notes"></p>
+      </section>
+    </template>
+
+    {# Step history #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Progress</p>
+      <template x-if="stepInstances.length === 0">
+        <p class="text-xs text-ghost italic">No steps run yet.</p>
+      </template>
+      <template x-if="stepInstances.length > 0">
+        <div class="flex flex-col gap-2">
+          <template x-for="si in stepInstances" :key="si.id">
+            <div class="rounded-lg bg-surface-1 px-3 py-2 flex flex-col gap-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 min-w-0">
+                  <span class="text-xs font-medium text-primary truncate" x-text="si.step_name"></span>
+                  <a
+                    :href="`/workflows/${task.workflow_id}/steps/${si.step_id}`"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-faint hover:text-primary transition-colors shrink-0"
+                    title="Open step"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/>
+                      <line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                  </a>
+                </div>
+                <span
+                  class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
+                  :class="{
+                    'bg-surface-3 text-faint':        si.status === 'pending',
+                    'bg-accent-dim text-accent':      si.status === 'active',
+                    'bg-green-900/40 text-green-400': si.status === 'complete',
+                  }"
+                  x-text="si.status"
+                ></span>
+              </div>
+              <template x-if="si.completed_at">
+                <p class="text-xs text-ghost" x-text="'Completed ' + new Date(si.completed_at).toLocaleString()"></p>
+              </template>
+              <template x-if="si.output">
+                <details class="mt-1">
+                  <summary class="text-xs text-faint cursor-pointer hover:text-secondary select-none">Output</summary>
+                  <pre class="mt-1.5 text-xs text-secondary bg-surface-2 rounded p-2 overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(si.output, null, 2)"></pre>
+                </details>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+    </section>
+
+  </div>
+</div>

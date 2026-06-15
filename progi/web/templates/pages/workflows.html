@@ -1,0 +1,136 @@
+{% extends base_template %}
+
+{% block outer_class %}{% endblock %}
+
+{% block content %}
+<style>
+  /* Mermaid SVG fills its container and inherits text color */
+  #mermaid-container svg {
+    width: 100%;
+    height: 100%;
+    max-height: 100%;
+  }
+  /* Clickable nodes get a pointer cursor and a subtle hover highlight */
+  #mermaid-container .node rect,
+  #mermaid-container .node circle,
+  #mermaid-container .node polygon,
+  #mermaid-container .node path {
+    transition: filter 0.15s ease;
+  }
+  #mermaid-container g[id*="step_"] {
+    cursor: pointer;
+  }
+  #mermaid-container g[id*="step_"]:hover rect,
+  #mermaid-container g[id*="step_"]:hover circle,
+  #mermaid-container g[id*="step_"]:hover polygon {
+    filter: brightness(1.4);
+  }
+</style>
+
+<div
+  class="flex min-h-[calc(100vh-2.75rem)]"
+  x-cloak
+  x-data="workflowEditor()"
+  x-init="init()"
+>
+
+  {# ── Sidebar ──────────────────────────────────────────────────────────────── #}
+  <aside class="w-56 shrink-0 border-r border-subtle bg-surface-1 px-3 py-6 flex flex-col gap-1">
+    <p class="px-2 mb-2 text-xs font-semibold tracking-widest uppercase text-faint">Workflows</p>
+
+    <template x-for="wf in workflows" :key="wf.id">
+      <div class="relative group">
+        <button
+          type="button"
+          @click="selectWorkflow(wf.id)"
+          :class="activeId === wf.id
+            ? 'bg-surface-2 text-primary'
+            : 'text-muted hover:bg-surface-2 hover:text-primary'"
+          class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors duration-150 text-left w-full pr-7"
+        >
+          <span
+            :class="activeId === wf.id ? 'bg-accent' : 'bg-accent-dim group-hover:bg-accent'"
+            class="size-1.5 rounded-full transition-colors duration-150 shrink-0"
+          ></span>
+          <span x-text="wf.name" class="truncate"></span>
+        </button>
+
+        {# 3-dot menu trigger #}
+        <button
+          type="button"
+          @click.stop="openMenuId = openMenuId === wf.id ? null : wf.id"
+          class="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 text-muted hover:text-primary transition-opacity"
+          :class="openMenuId === wf.id ? 'opacity-100' : ''"
+          title="More options"
+        >
+          <svg class="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+            <circle cx="8" cy="2.5" r="1.5"/>
+            <circle cx="8" cy="8" r="1.5"/>
+            <circle cx="8" cy="13.5" r="1.5"/>
+          </svg>
+        </button>
+
+        {# Dropdown #}
+        <template x-if="openMenuId === wf.id">
+          <div
+            class="absolute left-full top-0 ml-1 z-50 min-w-[120px] bg-surface-2 border border-subtle rounded-lg shadow-lg py-1"
+            @click.outside="openMenuId = null"
+          >
+            <button
+              type="button"
+              @click.stop="deleteWorkflow(wf.id)"
+              class="w-full text-left px-3 py-1.5 text-xs text-red-400 hover:bg-surface-1 hover:text-red-300 transition-colors"
+            >Delete</button>
+          </div>
+        </template>
+      </div>
+    </template>
+  </aside>
+
+  {# ── Main canvas area ──────────────────────────────────────────────────────── #}
+  <main class="flex-1 flex flex-col overflow-hidden relative">
+
+    {# Toolbar #}
+    <div class="flex items-center gap-3 px-6 py-3 border-b border-subtle bg-surface-1 shrink-0">
+      <template x-if="activeWorkflow">
+        <div class="flex items-center gap-3">
+          <h1 class="text-sm font-semibold text-primary" x-text="activeWorkflow.name"></h1>
+          <span class="text-xs text-faint" x-text="activeWorkflow.description"></span>
+        </div>
+      </template>
+    </div>
+
+    {# Mermaid graph container #}
+    <div id="mermaid-container" class="flex-1 w-full overflow-auto p-6 bg-surface-0"></div>
+
+    {# Empty state overlay #}
+    <template x-if="!activeWorkflow">
+      <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <p class="text-xs text-ghost">Select a workflow from the sidebar.</p>
+      </div>
+    </template>
+  </main>
+
+  {# ── Step detail modal ─────────────────────────────────────────────────────── #}
+  <template x-if="modalOpen">
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center p-6"
+      @keydown.escape.window="closeModal()"
+      @close-modal.window="closeModal()"
+    >
+      {# Backdrop #}
+      <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" @click="closeModal()"></div>
+
+      {# Modal panel #}
+      <article class="relative z-10 w-full max-w-2xl max-h-[80vh] flex flex-col bg-surface-2 border border-subtle rounded-xl shadow-2xl overflow-hidden">
+        <div id="step-detail" class="flex flex-col min-h-0 flex-1">
+          {# Partial loads here #}
+        </div>
+      </article>
+    </div>
+  </template>
+
+</div>
+
+<script id="workflows-data" type="application/json">{{ workflows | tojson }}</script>
+{% endblock %}

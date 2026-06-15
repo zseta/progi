@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Frontend build artifacts (downloaded/generated, not committed)
+# style.css IS committed — it ships in the wheel so uvx installs work without a build step
+frontend/tailwindcss
+frontend/tailwindcss.exe
+
+# Vendored JS IS committed (no CDN at runtime) — do not ignore vendor/
+
+# Local databases
+*.db
+*.db-wal
+*.db-shm
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+
+
+.env
+.vscode/
+.agents/
+.claude/
+.mcp.json
+
+# Alembic generated migrations (local only)
+alembic/versions/

@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "progi": {
+      "command": "uv",
+      "args": ["run", "progi"],
+      "env": { "PROGI_DB_PATH": "/path/to/your/progi.db" }
+    }
+  }
+}

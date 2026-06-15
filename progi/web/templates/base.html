@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}progi{% endblock %}</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!-- Compiled Tailwind (built by the standalone CLI via `just build`) -->
+    <link rel="stylesheet" href="/static/style.css" />
+    <style>[x-cloak] { display: none !important; }</style>
+
+    <!-- Vendored JS (downloaded by `just vendorize`; no CDN at runtime).
+         AlpineAJAX must load BEFORE Alpine core, and Alpine core must be
+         deferred so plugins register first.
+         mermaid, marked, and app.js load globally so they are available
+         when the workflows page is loaded via AJAX navigation. -->
+    <script defer src="/static/vendor/alpine-ajax.min.js"></script>
+    <script defer src="/static/vendor/mermaid.min.js"></script>
+    <script defer src="/static/vendor/marked.min.js"></script>
+    <script defer src="/static/app.js"></script>
+    <script defer src="/static/vendor/alpine.min.js"></script>
+    {% block head_extra %}{% endblock %}
+  </head>
+  <body class="min-h-screen bg-surface-0 text-primary font-sans antialiased">
+    <!-- Subtle radial glow from top center -->
+    <div class="fixed inset-0 pointer-events-none" style="background-image: radial-gradient(circle at 50% 0%, rgba(0,163,255,0.04) 0%, transparent 60%);"></div>
+
+    <!-- Top nav: x-data tracks current page for active highlighting.
+         @ajax:success fires after Alpine AJAX swaps content (location already updated).
+         @popstate fires on browser back/forward. -->
+    <nav
+      class="relative z-10 border-b border-subtle bg-surface-0/80 backdrop-blur-sm"
+      x-data="{ page: location.pathname }"
+      @ajax:after.window="page = location.pathname"
+      @popstate.window="page = location.pathname"
+    >
+      <div class="mx-auto max-w-5xl px-6 flex items-center gap-6 h-11">
+        <span class="text-xs font-semibold tracking-widest uppercase text-primary mr-2">progi</span>
+        <a href="/"
+           x-target.push="page-content"
+           :class="{ 'text-primary': page === '/', 'text-faint hover:text-muted': page !== '/' }"
+           class="text-xs font-medium transition-colors duration-150"
+           x-cloak>
+          Board
+        </a>
+        <a href="/workflows"
+           x-target.push="page-content"
+           :class="{ 'text-primary': page.startsWith('/workflows'), 'text-faint hover:text-muted': !page.startsWith('/workflows') }"
+           class="text-xs font-medium transition-colors duration-150"
+           x-cloak>
+          Workflows
+        </a>
+      </div>
+    </nav>
+
+    <div id="page-content" class="relative z-10 {% block outer_class %}mx-auto max-w-5xl px-6 py-12{% endblock %}">
+      {% block content %}{% endblock %}
+    </div>
+    {% block scripts %}{% endblock %}
+  </body>
+</html>

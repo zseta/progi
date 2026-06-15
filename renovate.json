@@ -1,0 +1,10 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["on sunday"],
+  "groupName": "all dependencies",
+  "prHourlyLimit": 1,
+  "prConcurrentLimit": 1,
+  "automerge": false,
+  "minimumReleaseAge": "14 days"
+}

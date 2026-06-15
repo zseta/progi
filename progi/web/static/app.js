@@ -1,0 +1,293 @@
+function boardView() {
+  return {
+    modalOpen: false,
+
+    init() {
+      // Deep-link: auto-open modal if URL is /tasks/{id}
+      const match = window.location.pathname.match(/\/tasks\/(\d+)/);
+      if (match) {
+        this.openTask(parseInt(match[1]));
+      }
+    },
+
+    closeModal() {
+      this.modalOpen = false;
+      history.replaceState(null, '', '/');
+    },
+
+    async openTask(taskId) {
+      this.modalOpen = true;
+      await this.$nextTick();
+      const container = document.getElementById('task-detail');
+      const resp = await fetch(`/tasks/${taskId}`, {
+        headers: { 'X-Partial': '1' },
+      });
+      const html = await resp.text();
+      container.innerHTML = html;
+      Alpine.initTree(container);
+      history.replaceState(null, '', `/tasks/${taskId}`);
+    },
+  };
+}
+
+function taskDetail() {
+  return {
+    task: null,
+    stepInstances: [],
+
+    init() {
+      const data = JSON.parse(document.getElementById('task-detail-data').textContent);
+      this.task = data.task;
+      this.stepInstances = data.stepInstances;
+    },
+  };
+}
+
+function workflowEditor() {
+  return {
+    workflows: [],
+    activeId: null,
+    activeWorkflow: null,
+    modalOpen: false,
+    openMenuId: null,
+
+    init() {
+      this.workflows = JSON.parse(document.getElementById('workflows-data').textContent);
+
+      // Configure Mermaid with dark theme matching design tokens
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'dark',
+        themeVariables: {
+          background:        '#000000',   // surface-0
+          mainBkg:           '#111111',   // surface-2 (node fill)
+          nodeBorder:        'rgba(255,255,255,0.08)',
+          clusterBkg:        '#0a0a0a',
+          titleColor:        '#fafafa',   // text-primary
+          edgeLabelBackground: '#0a0a0a',
+          lineColor:         '#00a3ff',   // accent
+          primaryTextColor:  '#fafafa',
+          secondaryTextColor:'#a1a1aa',  // text-secondary
+          tertiaryTextColor: '#71717a',  // text-muted
+          fontSize:          '12px',
+        },
+        flowchart: {
+          curve: 'basis',
+          useMaxWidth: false,
+        },
+        securityLevel: 'loose', // needed so we can attach click handlers
+      });
+
+      // Deep-link: /workflows/{id}/steps/{id} or just /workflows/{id}
+      const stepMatch = window.location.pathname.match(/\/workflows\/(\d+)\/steps\/(\d+)/);
+      const wfMatch  = window.location.pathname.match(/\/workflows\/(\d+)(?:\/|$)/);
+      if (stepMatch) {
+        const wfId = parseInt(stepMatch[1]);
+        const stepId = parseInt(stepMatch[2]);
+        this.selectWorkflow(wfId).then(() => {
+          this.openStep(wfId, stepId);
+        });
+      } else if (wfMatch) {
+        this.selectWorkflow(parseInt(wfMatch[1]));
+      }
+    },
+
+    closeModal() {
+      this.modalOpen = false;
+      history.replaceState(null, '', `/workflows/${this.activeId}`);
+    },
+
+    async selectWorkflow(id) {
+      if (this.activeId === id) return;
+      this.activeId = id;
+      this.modalOpen = false;
+      history.pushState(null, '', `/workflows/${id}`);
+
+      const resp = await fetch(`/workflows/${id}/graph`);
+      const wf = await resp.json();
+      this.activeWorkflow = wf;
+      await this._renderMermaid(wf.steps, wf.edges || []);
+    },
+
+    async openStep(workflowId, stepId) {
+      this.modalOpen = true;
+      await this.$nextTick();
+      const container = document.getElementById('step-detail');
+      const resp = await fetch(`/workflows/${workflowId}/steps/${stepId}`, {
+        headers: { 'X-Partial': '1' },
+      });
+      const html = await resp.text();
+      container.innerHTML = html;
+      Alpine.initTree(container);
+      history.pushState(null, '', `/workflows/${workflowId}/steps/${stepId}`);
+    },
+
+    async deleteWorkflow(id) {
+      if (!confirm('Are you sure you want to delete this workflow? This cannot be undone.')) return;
+      const resp = await fetch(`/workflows/${id}`, { method: 'DELETE' });
+      if (resp.ok) {
+        this.workflows = this.workflows.filter(wf => wf.id !== id);
+        if (this.activeId === id) {
+          this.activeId = null;
+          this.activeWorkflow = null;
+          document.getElementById('mermaid-container').innerHTML = '';
+          history.replaceState(null, '', '/workflows');
+        }
+      }
+      this.openMenuId = null;
+    },
+
+    async _renderMermaid(steps, edges) {
+      const container = document.getElementById('mermaid-container');
+      container.innerHTML = '';
+
+      if (!steps || steps.length === 0) return;
+
+      // Build step id → step lookup
+      const stepById = {};
+      steps.forEach(s => { stepById[s.id] = s; });
+
+      // Build Mermaid flowchart definition (left-to-right)
+      let def = 'flowchart LR\n';
+
+      // Add nodes — sanitize names for Mermaid IDs
+      steps.forEach(s => {
+        const nodeId = `step_${s.id}`;
+        const label = escapeHtml(s.name);
+        def += `  ${nodeId}["${label}"]\n`;
+      });
+
+      // Add edges
+      if (edges.length > 0) {
+        edges.forEach(e => {
+          const from = `step_${e.from_step_id}`;
+          const to   = `step_${e.to_step_id}`;
+          if (e.condition) {
+            const label = _conditionLabel(e.condition);
+            def += `  ${from} -->|"${label}"| ${to}\n`;
+          } else {
+            def += `  ${from} --> ${to}\n`;
+          }
+        });
+      } else {
+        // Fallback: linear by order
+        const ordered = [...steps].sort((a, b) => a.order - b.order);
+        for (let i = 0; i < ordered.length - 1; i++) {
+          def += `  step_${ordered[i].id} --> step_${ordered[i+1].id}\n`;
+        }
+      }
+
+      // Render to SVG
+      const { svg } = await mermaid.render('mermaid-graph', def);
+      container.innerHTML = svg;
+
+      // Attach click handlers to nodes so we can open the modal
+      const svgEl = container.querySelector('svg');
+      if (!svgEl) return;
+
+      steps.forEach(s => {
+        // Mermaid 11 generates g elements with id "flowchart-step_{id}-{n}" OR
+        // just "flowchart-step_{id}" — match both with a prefix that ends in
+        // the id followed by either "-" or end-of-string (via two selectors).
+        const nodeEls = svgEl.querySelectorAll(`g[id*="step_${s.id}"]`);
+        nodeEls.forEach(el => {
+          el.style.cursor = 'pointer';
+          el.addEventListener('click', () => {
+            this.openStep(this.activeId, s.id);
+          });
+        });
+      });
+    },
+  };
+}
+
+function stepDetail() {
+  return {
+    workflowId: null,
+    stepId: null,
+    stepName: '',
+    inputSpec: null,
+    outputSpec: null,
+    playbook: '',
+    prevSteps: [],
+    nextSteps: [],
+    editing: { input_spec: false, output_spec: false, playbook: false },
+    drafts:  { input_spec: '',    output_spec: '',    playbook: ''    },
+    errors:  { input_spec: '',    output_spec: ''                     },
+
+    init() {
+      const data = JSON.parse(document.getElementById('step-detail-data').textContent);
+      Object.assign(this, data);
+    },
+
+    startEdit(field, value) {
+      this.drafts[field] = value ?? '';
+      this.errors[field] = '';
+      this.editing[field] = true;
+    },
+
+    cancelEdit(field) {
+      this.editing[field] = false;
+      this.errors[field] = '';
+    },
+
+    async saveEdit(field) {
+      const body = {};
+      if (field === 'playbook') {
+        body.playbook = this.drafts.playbook;
+      } else {
+        try {
+          body[field] = JSON.parse(this.drafts[field]);
+        } catch {
+          this.errors[field] = 'Invalid JSON';
+          return;
+        }
+      }
+
+      const resp = await fetch(`/workflows/${this.workflowId}/steps/${this.stepId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (resp.ok) {
+        // Persist new value locally
+        if (field === 'input_spec')  this.inputSpec  = body.input_spec;
+        if (field === 'output_spec') this.outputSpec = body.output_spec;
+        if (field === 'playbook')    this.playbook   = body.playbook;
+        this.editing[field] = false;
+        this.errors[field]  = '';
+      }
+    },
+
+    async navigateStep(targetStepId) {
+      const container = document.getElementById('step-detail');
+      const resp = await fetch(`/workflows/${this.workflowId}/steps/${targetStepId}`, {
+        headers: { 'X-Partial': '1' },
+      });
+      const html = await resp.text();
+      container.innerHTML = html;
+      Alpine.initTree(container);
+      history.replaceState(null, '', `/workflows/${this.workflowId}/steps/${targetStepId}`);
+    },
+
+    renderMarkdown(content) {
+      return marked.parse(content || '');
+    },
+  };
+}
+
+function _conditionLabel(condition) {
+  if (!condition) return '';
+  const opMap = { eq: '=', neq: '≠', in: 'in', not_in: 'not in' };
+  const op = opMap[condition.operator] || condition.operator;
+  return `${condition.field} ${op} ${JSON.stringify(condition.value)}`;
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
