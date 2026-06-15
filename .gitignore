@@ -28,6 +28,3 @@ frontend/tailwindcss.exe
 .agents/
 .claude/
 .mcp.json
-
-# Alembic generated migrations (local only)
-alembic/versions/
