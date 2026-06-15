@@ -30,6 +30,8 @@ def main() -> None:
     from ..logging_setup import configure_logging
 
     configure_logging()
+    from ..db import init_db
+    init_db(app.state.cfg)
     uvicorn.run(
         "progi.web.app:app",
         host=app.state.cfg.web_host,

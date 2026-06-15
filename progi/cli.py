@@ -69,6 +69,9 @@ def main() -> None:
 
     configure_logging()
 
+    from .db import init_db
+    init_db(cfg)
+
     if not cfg.no_web:
         _start_web_in_thread(cfg)
 

@@ -85,6 +85,26 @@ def dispose_engine() -> None:
         _engine = None
 
 
+def init_db(cfg: Config) -> None:
+    """Run all pending Alembic migrations.
+
+    Call this once at startup before serving any requests. On a fresh install
+    this creates all tables; on subsequent runs it applies only new migrations.
+    """
+    import pathlib
+
+    from alembic import command
+    from alembic.config import Config as AlembicConfig
+
+    alembic_cfg = AlembicConfig()
+    # Point at the alembic/ directory relative to this package root.
+    pkg_root = pathlib.Path(__file__).parent.parent
+    alembic_cfg.set_main_option("script_location", str(pkg_root / "alembic"))
+    alembic_cfg.set_main_option("sqlalchemy.url", cfg.sqlalchemy_url)
+    cfg.ensure_dirs()
+    command.upgrade(alembic_cfg, "head")
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
