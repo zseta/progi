@@ -97,9 +97,8 @@ def init_db(cfg: Config) -> None:
     from alembic.config import Config as AlembicConfig
 
     alembic_cfg = AlembicConfig()
-    # Point at the alembic/ directory relative to this package root.
-    pkg_root = pathlib.Path(__file__).parent.parent
-    alembic_cfg.set_main_option("script_location", str(pkg_root / "alembic"))
+    # Point at the alembic/ directory bundled inside the package.
+    alembic_cfg.set_main_option("script_location", str(pathlib.Path(__file__).parent / "alembic"))
     alembic_cfg.set_main_option("sqlalchemy.url", cfg.sqlalchemy_url)
     cfg.ensure_dirs()
     command.upgrade(alembic_cfg, "head")
