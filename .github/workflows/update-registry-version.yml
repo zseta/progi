@@ -1,0 +1,39 @@
+name: Update server.json
+
+on:
+  workflow_run:
+    workflows: ["Publish to PyPI"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from pyproject.toml
+        id: version
+        run: |
+          VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Update server.json versions
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Update packages[0].version (exact PyPI version)
+          jq --arg v "$VERSION" '.packages[0].version = $v' .github/server.json > .github/server.json.tmp
+          # Update top-level version (registry version, reset suffix to 1)
+          jq --arg v "${VERSION}-registry.1" '.version = $v' .github/server.json.tmp > .github/server.json
+          rm .github/server.json.tmp
+
+      - name: Commit updated server.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/server.json
+          git diff --cached --quiet || git commit -m "chore: update server.json to ${{ steps.version.outputs.version }}"
+          git push
