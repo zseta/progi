@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: astral-sh/setup-uv@v5
       - run: uv lock
       - uses: stefanzweifel/git-auto-commit-action@v5
