@@ -50,6 +50,10 @@ function workflowEditor() {
     activeWorkflow: null,
     modalOpen: false,
     openMenuId: null,
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+    _drag: null,   // { startX, startY, originX, originY } while dragging
 
     init() {
       this.workflows = JSON.parse(document.getElementById('workflows-data').textContent);
@@ -137,9 +141,86 @@ function workflowEditor() {
       this.openMenuId = null;
     },
 
+    zoomBy(delta) {
+      this.zoom = Math.min(4, Math.max(0.2, this.zoom + delta));
+      this._applyTransform();
+    },
+
+    resetZoom() {
+      this.zoom = 1;
+      this.panX = 0;
+      this.panY = 0;
+      this._applyTransform();
+    },
+
+    onWheel(e) {
+      const container = document.getElementById('mermaid-container');
+      const rect = container.getBoundingClientRect();
+      // Mouse position relative to container
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      // Point in diagram space under the cursor before zoom
+      const diagramX = (mouseX - this.panX) / this.zoom;
+      const diagramY = (mouseY - this.panY) / this.zoom;
+
+      const delta = e.deltaY < 0 ? 0.1 : -0.1;
+      this.zoom = Math.min(4, Math.max(0.2, this.zoom + delta));
+
+      // Adjust pan so the same diagram point stays under the cursor
+      this.panX = mouseX - diagramX * this.zoom;
+      this.panY = mouseY - diagramY * this.zoom;
+      this._applyTransform();
+    },
+
+    onDragStart(e) {
+      if (e.button !== 0) return;
+      this._drag = { startX: e.clientX, startY: e.clientY, originX: this.panX, originY: this.panY, moved: false };
+    },
+
+    onDragMove(e) {
+      if (!this._drag) return;
+      const dx = e.clientX - this._drag.startX;
+      const dy = e.clientY - this._drag.startY;
+      // Only commit to a drag once the mouse has moved a few pixels
+      if (!this._drag.moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      if (!this._drag.moved) {
+        // Confirmed drag — disable SVG pointer events so mousemove stays on the container
+        this._drag.moved = true;
+        const container = document.getElementById('mermaid-container');
+        container.style.cursor = 'grabbing';
+        const svg = container.querySelector('svg');
+        if (svg) svg.style.pointerEvents = 'none';
+      }
+      this.panX = this._drag.originX + dx;
+      this.panY = this._drag.originY + dy;
+      this._applyTransform();
+    },
+
+    onDragEnd(e) {
+      if (!this._drag) return;
+      const wasDrag = this._drag.moved;
+      this._drag = null;
+      const container = document.getElementById('mermaid-container');
+      container.style.cursor = 'grab';
+      const svg = container.querySelector('svg');
+      if (svg) svg.style.pointerEvents = '';
+      // Suppress the upcoming click only when the mouse actually dragged
+      if (wasDrag) {
+        container.addEventListener('click', e => e.stopPropagation(), { capture: true, once: true });
+      }
+    },
+
+    _applyTransform() {
+      const svg = document.querySelector('#mermaid-container svg');
+      if (svg) svg.style.transform = `translate(${this.panX}px, ${this.panY}px) scale(${this.zoom})`;
+    },
+
     async _renderMermaid(steps, edges) {
       const container = document.getElementById('mermaid-container');
       container.innerHTML = '';
+      this.zoom = 1;
+      this.panX = 0;
+      this.panY = 0;
 
       if (!steps || steps.length === 0) return;
 
@@ -181,9 +262,13 @@ function workflowEditor() {
       const { svg } = await mermaid.render('mermaid-graph', def);
       container.innerHTML = svg;
 
-      // Attach click handlers to nodes so we can open the modal
+      // Make SVG fill the container: remove fixed width/height, use 100%
       const svgEl = container.querySelector('svg');
       if (!svgEl) return;
+      svgEl.removeAttribute('width');
+      svgEl.removeAttribute('height');
+      svgEl.style.width  = '100%';
+      svgEl.style.height = '100%';
 
       steps.forEach(s => {
         // Mermaid 11 generates g elements with id "flowchart-step_{id}-{n}" OR

@@ -4,11 +4,17 @@
 
 {% block content %}
 <style>
-  /* Mermaid SVG fills its container and inherits text color */
+  /* Mermaid SVG: fills container, transformed by JS for zoom/pan */
+  #mermaid-container {
+    position: relative;
+  }
   #mermaid-container svg {
+    display: block;
     width: 100%;
     height: 100%;
-    max-height: 100%;
+    transform-origin: 0 0;
+    user-select: none;
+    cursor: inherit;
   }
   /* Clickable nodes get a pointer cursor and a subtle hover highlight */
   #mermaid-container .node rect,
@@ -93,15 +99,48 @@
     {# Toolbar #}
     <div class="flex items-center gap-3 px-6 py-3 border-b border-subtle bg-surface-1 shrink-0">
       <template x-if="activeWorkflow">
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 flex-1">
           <h1 class="text-sm font-semibold text-primary" x-text="activeWorkflow.name"></h1>
           <span class="text-xs text-faint" x-text="activeWorkflow.description"></span>
         </div>
       </template>
+      <template x-if="!activeWorkflow"><div class="flex-1"></div></template>
+
+      {# Zoom controls #}
+      <div class="flex items-center gap-1 ml-auto">
+        <button
+          type="button"
+          @click="zoomBy(-0.1)"
+          class="size-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-surface-2 transition-colors text-base leading-none"
+          title="Zoom out"
+        >−</button>
+        <button
+          type="button"
+          @click="resetZoom()"
+          class="px-2 py-0.5 rounded text-xs text-muted hover:text-primary hover:bg-surface-2 transition-colors tabular-nums w-12 text-center"
+          title="Reset zoom"
+          x-text="Math.round(zoom * 100) + '%'"
+        ></button>
+        <button
+          type="button"
+          @click="zoomBy(0.1)"
+          class="size-6 flex items-center justify-center rounded text-muted hover:text-primary hover:bg-surface-2 transition-colors text-base leading-none"
+          title="Zoom in"
+        >+</button>
+      </div>
     </div>
 
     {# Mermaid graph container #}
-    <div id="mermaid-container" class="flex-1 w-full overflow-auto p-6 bg-surface-0"></div>
+    <div
+      id="mermaid-container"
+      class="flex-1 w-full overflow-hidden p-6 bg-surface-0"
+      style="cursor: grab"
+      @wheel.prevent="onWheel($event)"
+      @mousedown="onDragStart($event)"
+      @mousemove="onDragMove($event)"
+      @mouseup="onDragEnd($event)"
+      @mouseleave="onDragEnd($event)"
+    ></div>
 
     {# Empty state overlay #}
     <template x-if="!activeWorkflow">
