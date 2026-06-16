@@ -1,6 +1,6 @@
 # Progi - MCP-native Workflow Engine
 
-<img src="docs/images/progi-icon.svg" alt="Progi" width="120" />
+<img src="docs/images/logo/progi-logo-small.png" alt="Progi" width="120" />
 
 Progi teaches your agent how **you** like to get things done. So you can do your best work without re-explaining your process or losing context between sessions.
 
