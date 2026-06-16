@@ -9,6 +9,9 @@ on:
     branches: [main]
     paths: [pyproject.toml]
 
+permissions:
+  contents: write
+
 jobs:
   update-lock:
     runs-on: ubuntu-latest
