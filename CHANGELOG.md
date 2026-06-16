@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1](https://github.com/zseta/progi/compare/v0.3.0...v0.3.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* delete workflows ([389f1ef](https://github.com/zseta/progi/commit/389f1ef94af4b2842b911526dabef0aa21845b86))
+* display monitoring URL in MCP responses ([#12](https://github.com/zseta/progi/issues/12)) ([dde8538](https://github.com/zseta/progi/commit/dde85388c4c49c2a60cfe762988efa43a9ea54bc))
+
 ## [0.3.0](https://github.com/zseta/progi/compare/v0.2.1...v0.3.0) (2026-06-16)
 
 
