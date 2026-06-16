@@ -127,7 +127,7 @@ function workflowEditor() {
     },
 
     async deleteWorkflow(id) {
-      if (!confirm('Are you sure you want to delete this workflow? This cannot be undone.')) return;
+      if (!confirm('Are you sure you want to delete this workflow? All tasks associated with it will also be permanently deleted. This cannot be undone.')) return;
       const resp = await fetch(`/workflows/${id}`, { method: 'DELETE' });
       if (resp.ok) {
         this.workflows = this.workflows.filter(wf => wf.id !== id);

@@ -395,9 +395,21 @@ def get_playbook_authoring_context(
 
 
 def delete_workflow(cfg: Config, workflow_id: int) -> None:
-    """Delete a workflow and all its dependent data (cascades via FK)."""
+    """Delete a workflow and all its dependent data."""
     engine = get_engine(cfg)
     with engine.begin() as conn:
+        # tasks.workflow_id has no CASCADE, so delete tasks (and their
+        # step_instances via cascade) before touching the workflow.
+        task_ids = conn.execute(
+            sa.select(tasks.c.id).where(tasks.c.workflow_id == workflow_id)
+        ).scalars().all()
+        if task_ids:
+            conn.execute(
+                sa.delete(step_instances).where(step_instances.c.task_id.in_(task_ids))
+            )
+            conn.execute(
+                sa.delete(tasks).where(tasks.c.id.in_(task_ids))
+            )
         result = conn.execute(
             sa.delete(workflows).where(workflows.c.id == workflow_id)
         )
