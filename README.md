@@ -104,3 +104,6 @@ Authoring is two passes: Pass 1 turns a plain-language description into a struct
 Run modes: `uvx progi` (MCP + web UI), `uvx progi --no-web` (MCP only), `uvx progi-web` (web UI only).
 
 > Use an absolute path for `PROGI_DB_PATH`
+
+
+<!-- mcp-name: io.github.zseta/progi -->
