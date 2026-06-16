@@ -4,7 +4,6 @@ Progi teaches your agent how **you** like to get things done. So you can do your
 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/pypi/pyversions/progi)](https://pypi.org/project/progi/)
 [![PyPI](https://img.shields.io/pypi/v/progi)](https://pypi.org/project/progi/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-6366f1)](https://modelcontextprotocol.io)
 
@@ -12,7 +11,7 @@ Progi teaches your agent how **you** like to get things done. So you can do your
 
 ## Get started
 
-Add Progi to your MCP client config (VS Code / Cursor / Zed / Claude Code / etc):
+Add Progi to your MCP client config (GH Copilot / Cursor / Claude Code / etc):
 
 ```json
 {
@@ -25,13 +24,22 @@ Add Progi to your MCP client config (VS Code / Cursor / Zed / Claude Code / etc)
 }
 ```
 
-Or with the Claude Code CLI:
+Progi Monitoring starts automatically at `http://127.0.0.1:8000`.
 
-```bash
-claude mcp add progi -- uvx progi
+If you want to start Monitoring on a different port:
+```json
+{
+  "mcpServers": {
+    "progi": {
+      "command": "uvx",
+      "args": ["progi"],
+      "env": {
+        "PROGI_WEB_PORT": "8080"
+      }
+    }
+  }
+}
 ```
-
-Requires [uv](https://docs.astral.sh/uv/). That's it — your AI now has tools to create workflows, follow playbooks step by step, and keep a kanban board current. The web UI (Progi Monitoring) starts automatically at `http://127.0.0.1:8000`.
 
 ---
 
@@ -39,11 +47,14 @@ Requires [uv](https://docs.astral.sh/uv/). That's it — your AI now has tools t
 
 **1. Describe your workflow**
 
+*"Hey Progi, help me create workflow for creating integrations, reviewing code, and publishing PRs."*
+
 Describe your process in plain language. You can be detailed or just provide a rough idea. Progi stores it as a structured workflow with per-step playbooks.
 
 **2. Run tasks, stay in the loop**
 
-*"Hey Progi, continue working on xy task."* Your agent loads the workflow, works through each step using your playbooks, and loops you in at critical checkpoints to review output.
+*"Hey Progi, start a new task, we need to review a new docs PR in the repo."* 
+Your agent loads the workflow, works through each step using your playbooks, and loops you in at critical checkpoints to review output.
 
 **3. Monitor progress**
 
@@ -93,9 +104,3 @@ Authoring is two passes: Pass 1 turns a plain-language description into a struct
 Run modes: `uvx progi` (MCP + web UI), `uvx progi --no-web` (MCP only), `uvx progi-web` (web UI only).
 
 > Use an absolute path for `PROGI_DB_PATH`
-
----
-
-## License
-
-MIT
