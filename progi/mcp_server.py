@@ -32,6 +32,13 @@ mcp: FastMCP = FastMCP("progi")
 # to `run()` for the bundled mode.
 _cfg: Config = load_config()
 
+
+def _monitoring_url(path: str = "") -> str:
+    """Return the full URL to the monitoring web app, optionally with a path."""
+    base = f"http://{_cfg.web_host}:{_cfg.web_port}"
+    return base + path if path else base
+
+
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 _WORKFLOW_SKELETON_MD = _PROMPTS_DIR / "workflow_skeleton.md"
 _PLAYBOOK_MD = _PROMPTS_DIR / "playbook.md"
@@ -50,16 +57,18 @@ def create_task(name: str, workflow_id: int, description: str = "") -> dict:
     first step. Before calling this, confirm the workflow choice with the user
     AND ask them what they want to name the task.
     """
-    return db.create_task(_cfg, name, workflow_id, description)
+    result = db.create_task(_cfg, name, workflow_id, description)
+    result["monitoring_url"] = _monitoring_url(f"/tasks/{result['id']}")
+    return result
 
 
 @mcp.tool(title="List Tasks")
-def list_tasks(status: str = "", workflow_id: int = 0) -> list[dict]:
+def list_tasks(status: str = "", workflow_id: int = 0) -> dict:
     """List tasks, optionally filtered by status and/or workflow_id.
 
     Empty string / 0 means no filter. "My todos" = status="todo".
     """
-    return db.list_tasks(_cfg, status, workflow_id)
+    return {"tasks": db.list_tasks(_cfg, status, workflow_id), "monitoring_url": _monitoring_url("/")}
 
 
 @mcp.tool(title="Start or Continue Task")
@@ -78,7 +87,9 @@ def start_or_continue_task(task_id: int) -> dict:
     (correct type, meets constraints, includes any fields referenced by branching
     conditions).
     """
-    return db.start_or_continue_task(_cfg, task_id)
+    result = db.start_or_continue_task(_cfg, task_id)
+    result["monitoring_url"] = _monitoring_url(f"/tasks/{task_id}")
+    return result
 
 
 @mcp.tool(title="Update Progress Notes")
@@ -171,18 +182,19 @@ def save_workflow(skeleton: dict, playbooks_by_step: dict) -> dict:
     playbooks_by_step: mapping of step name → playbook markdown string.
     """
     result = db.save_workflow(_cfg, skeleton, playbooks_by_step)
-    result.pop("id", None)
+    workflow_id = result.pop("id", None)
     for step in result.get("steps", []):
         step.pop("id", None)
         step.pop("workflow_id", None)
+    if workflow_id is not None:
+        result["monitoring_url"] = _monitoring_url(f"/workflows/{workflow_id}")
     return result
 
 
 @mcp.tool(title="List Workflows")
-def list_workflows() -> list[dict]:
+def list_workflows() -> dict:
     """Return all workflows with their ordered steps."""
-    return db.list_workflows(_cfg)
-
+    return {"workflows": db.list_workflows(_cfg), "monitoring_url": _monitoring_url("/workflows")}
 
 
 @mcp.tool(title="Update Playbook")
