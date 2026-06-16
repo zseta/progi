@@ -1,0 +1,41 @@
+name: Update uv.lock after release
+
+# WORKAROUND: release-please doesn't update uv.lock when bumping the version.
+# See: https://github.com/googleapis/release-please/issues/2561
+# When fixed upstream, delete this file and add uv.lock handling to the
+# release-please config instead.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-uv-lock:
+    runs-on: ubuntu-latest
+    # On push: only runs when the release-please PR is merged (its merge commit starts with "chore(main): release")
+    if: "github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message, 'chore(main): release')"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Regenerate and commit uv.lock if changed
+        run: |
+          uv lock
+          if ! git diff --quiet uv.lock; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add uv.lock
+            git commit -m "chore: regenerate uv.lock after release"
+            git push
+          else
+            echo "uv.lock did not change, skipping."
+          fi

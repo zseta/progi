@@ -13,8 +13,6 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    env:
-      release_branch: release-please--branches--main
     steps:
       - name: Release Please
         uses: googleapis/release-please-action@v4
@@ -22,40 +20,3 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           release-type: python
 
-      # WORKAROUND: release-please doesn't update uv.lock when bumping the version.
-      # See: https://github.com/googleapis/release-please/issues/2561
-      # When fixed upstream, delete everything below this comment and add uv.lock
-      # handling to the release-please config instead.
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Check if release branch exists
-        run: |
-          if git ls-remote --exit-code --quiet --branches origin "$release_branch"; then
-            echo "release_branch_exists=true" >> $GITHUB_ENV
-          else
-            echo "release_branch_exists=false" >> $GITHUB_ENV
-            echo "Release branch doesn't exist"
-          fi
-
-      - name: Install uv
-        if: ${{ env.release_branch_exists == 'true' }}
-        uses: astral-sh/setup-uv@v6
-        with:
-          enable-cache: true
-
-      - name: Regenerate and commit uv.lock if changed
-        if: ${{ env.release_branch_exists == 'true' }}
-        run: |
-          git switch $release_branch
-          uv lock
-          if ! git diff --quiet uv.lock; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add uv.lock
-            git commit --amend --no-edit
-            git push --force
-          else
-            echo "uv.lock did not change, skipping commit and push."
-          fi
