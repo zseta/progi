@@ -126,30 +126,37 @@ def _ordered_steps(conn, workflow_id: int) -> list[dict[str, Any]]:
 
 
 def _start_step(conn, workflow_id: int) -> dict[str, Any]:
-    """Return the entry-point step: the one with no incoming edges.
+    """Return the entry-point step: the one with no forward-incoming edges.
+
+    Back-edges (loop-backs from a higher-order step to a lower-order step) are
+    excluded from the "incoming edge" check so that loop targets are not
+    mistakenly disqualified from being the entry point.
 
     Falls back to the step with the lowest order if no edges exist yet
     (e.g. during initial creation before edges are inserted).
     """
-    # All step IDs in this workflow
-    all_step_ids = [
-        r[0]
+    # Build order lookup for all steps in this workflow
+    order_by_id = {
+        r[0]: r[1]
         for r in conn.execute(
-            sa.select(steps.c.id).where(steps.c.workflow_id == workflow_id)
-        ).fetchall()
-    ]
-    if not all_step_ids:
-        raise ValueError(f"Workflow {workflow_id} has no steps.")
-
-    # Step IDs that appear as edge targets (i.e. have an incoming edge)
-    target_ids = {
-        r[0]
-        for r in conn.execute(
-            sa.select(step_edges.c.to_step_id).where(step_edges.c.workflow_id == workflow_id)
+            sa.select(steps.c.id, steps.c.order).where(steps.c.workflow_id == workflow_id)
         ).fetchall()
     }
+    if not order_by_id:
+        raise ValueError(f"Workflow {workflow_id} has no steps.")
 
-    entry_candidates = [sid for sid in all_step_ids if sid not in target_ids]
+    # Step IDs that are targets of a *forward* edge (from lower-order → higher-order step).
+    # Back-edges (loop returns) are excluded so they don't disqualify the entry step.
+    target_ids = {
+        to_id
+        for to_id, from_id in conn.execute(
+            sa.select(step_edges.c.to_step_id, step_edges.c.from_step_id)
+            .where(step_edges.c.workflow_id == workflow_id)
+        ).fetchall()
+        if order_by_id.get(from_id, 0) < order_by_id.get(to_id, 0)
+    }
+
+    entry_candidates = [sid for sid in order_by_id if sid not in target_ids]
     if not entry_candidates:
         # Cycle or no edges — fall back to lowest order
         row = (
@@ -790,7 +797,7 @@ def submit_output(
                         step_instances.c.task_id == task_id,
                         step_instances.c.step_id == source_step_row[0],
                         step_instances.c.status == "complete",
-                    )
+                    ).order_by(step_instances.c.id.desc())
                 ).first()
                 source_output = source_si[0] if source_si else {}
             else:

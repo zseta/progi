@@ -98,6 +98,12 @@ For a branching workflow, the edges express the routing logic:
 - For a simple linear workflow, `edges` connects step[i] → step[i+1] with
   `condition: null`. If you omit `edges` entirely, the system will auto-generate
   linear edges from the `order` values.
+- **Loops** are expressed as back-edges: an edge from a later step back to an
+  earlier step. Use a conditional edge (priority 0) for the exit path and a
+  second edge (priority 1, condition or `null`) for the loop-back. The looping
+  step should use `source: "previous_step_output"` to carry state forward across
+  iterations — the runtime always uses the most recent completed output for the
+  named `from_step`.
 
 Do not write playbooks in this pass. Once the user approves the skeleton, it is
 saved and Pass 2 authors each step's playbook.
