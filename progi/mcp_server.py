@@ -72,7 +72,10 @@ def list_tasks(status: str = "", workflow_id: int = 0) -> dict:
 
     Always show the user the monitoring_url from the response.
     """
-    return {"tasks": db.list_tasks(_cfg, status, workflow_id), "monitoring_url": _monitoring_url("/")}
+    return {
+        "tasks": db.list_tasks(_cfg, status, workflow_id),
+        "monitoring_url": _monitoring_url("/"),
+    }
 
 
 @mcp.tool(title="Start or Continue Task")
@@ -159,21 +162,24 @@ def get_playbook_authoring_prompt(step_id: int) -> str:
     siblings = ctx["siblings"]
 
     process_list = " → ".join(
-        f"**{s['name']}**" if s["name"] == step["name"] else s["name"]
-        for s in siblings
+        f"**{s['name']}**" if s["name"] == step["name"] else s["name"] for s in siblings
     )
 
     requires_approval = bool(step.get("requires_approval", False))
-    approval_status = "YES — agent must show output to user and get approval before submitting" if requires_approval else "NO — agent may submit immediately"
+    approval_status = (
+        "YES — agent must show output to user and get approval before submitting"
+        if requires_approval
+        else "NO — agent may submit immediately"
+    )
 
     context_block = f"""<!-- CONTEXT INJECTED BY MCP SERVER -->
 ## Workflow Context
 
-- **Workflow**: {wf['name']} — {wf['description']}
+- **Workflow**: {wf["name"]} — {wf["description"]}
 - **Full process**: {process_list}
-- **This step**: **{step['name']}**
-  - input_spec: {json.dumps(step['input_spec'], indent=2)}
-  - output_spec: {json.dumps(step['output_spec'], indent=2)}
+- **This step**: **{step["name"]}**
+  - input_spec: {json.dumps(step["input_spec"], indent=2)}
+  - output_spec: {json.dumps(step["output_spec"], indent=2)}
   - requires_approval (current value): **{approval_status}**
 
 ---

@@ -1,5 +1,4 @@
-"""
-"""
+""" """
 
 from __future__ import annotations
 
@@ -31,6 +30,7 @@ def main() -> None:
 
     configure_logging()
     from ..db import init_db
+
     init_db(app.state.cfg)
     uvicorn.run(
         "progi.web.app:app",

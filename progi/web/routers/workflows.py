@@ -18,7 +18,11 @@ def _templates(request: Request) -> Jinja2Templates:
 def workflows(request: Request):
     cfg = request.app.state.cfg
     wf_list = db.list_workflows(cfg)
-    ctx = {"workflows": wf_list, "active_page": "workflows", "base_template": base_template(request)}
+    ctx = {
+        "workflows": wf_list,
+        "active_page": "workflows",
+        "base_template": base_template(request),
+    }
     return _templates(request).TemplateResponse(request, "pages/workflows.html", ctx)
 
 
@@ -27,7 +31,11 @@ def workflow_detail(workflow_id: int, request: Request):  # noqa: ARG001
     """Direct browser navigation to a workflow — serve full page; JS selects it."""
     cfg = request.app.state.cfg
     wf_list = db.list_workflows(cfg)
-    ctx = {"workflows": wf_list, "active_page": "workflows", "base_template": base_template(request)}
+    ctx = {
+        "workflows": wf_list,
+        "active_page": "workflows",
+        "base_template": base_template(request),
+    }
     return _templates(request).TemplateResponse(request, "pages/workflows.html", ctx)
 
 
@@ -56,7 +64,11 @@ def step_detail(workflow_id: int, step_id: int, request: Request):
         return _templates(request).TemplateResponse(
             request,
             "pages/workflows.html",
-            {"workflows": wf_list, "active_page": "workflows", "base_template": base_template(request)},
+            {
+                "workflows": wf_list,
+                "active_page": "workflows",
+                "base_template": base_template(request),
+            },
         )
 
     return _templates(request).TemplateResponse(
@@ -87,7 +99,9 @@ def update_step(
     try:
         if "playbook" in payload:
             db.update_playbook(cfg, step_id, payload.pop("playbook"))
-        step_fields = {k: v for k, v in payload.items() if k in ("name", "input_spec", "output_spec")}
+        step_fields = {
+            k: v for k, v in payload.items() if k in ("name", "input_spec", "output_spec")
+        }
         if step_fields:
             db.update_step(cfg, step_id, **step_fields)
     except ValueError as exc:

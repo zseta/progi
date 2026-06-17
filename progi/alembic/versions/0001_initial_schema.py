@@ -38,9 +38,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("input_spec", sa.JSON(), nullable=False),
         sa.Column("output_spec", sa.JSON(), nullable=False),
-        sa.Column(
-            "requires_approval", sa.Boolean(), server_default="0", nullable=False
-        ),
+        sa.Column("requires_approval", sa.Boolean(), server_default="0", nullable=False),
         sa.ForeignKeyConstraint(["workflow_id"], ["workflows.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -72,9 +70,7 @@ def upgrade() -> None:
         sa.Column("workflow_id", sa.Integer(), nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("description", sa.Text(), nullable=True),
-        sa.Column(
-            "status", sa.String(length=32), server_default="todo", nullable=False
-        ),
+        sa.Column("status", sa.String(length=32), server_default="todo", nullable=False),
         sa.Column("current_step_id", sa.Integer(), nullable=True),
         sa.Column("progress_notes", sa.Text(), nullable=True),
         sa.Column(
@@ -92,9 +88,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("task_id", sa.Integer(), nullable=False),
         sa.Column("step_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "status", sa.String(length=32), server_default="pending", nullable=False
-        ),
+        sa.Column("status", sa.String(length=32), server_default="pending", nullable=False),
         sa.Column("input_data", sa.JSON(), nullable=True),
         sa.Column("output", sa.JSON(), nullable=True),
         sa.Column("completed_at", sa.DateTime(), nullable=True),
