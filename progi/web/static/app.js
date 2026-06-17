@@ -50,6 +50,8 @@ function workflowEditor() {
     activeWorkflow: null,
     modalOpen: false,
     openMenuId: null,
+    renamingId: null,
+    renameValue: '',
     zoom: 1,
     panX: 0,
     panY: 0,
@@ -124,6 +126,42 @@ function workflowEditor() {
       container.innerHTML = html;
       Alpine.initTree(container);
       history.pushState(null, '', `/workflows/${workflowId}/steps/${stepId}`);
+    },
+
+    startRename(wf) {
+      this.renamingId = wf.id;
+      this.renameValue = wf.name;
+      this.openMenuId = null;
+      this.$nextTick(() => {
+        const input = document.getElementById(`rename-input-${wf.id}`);
+        if (input) { input.focus(); input.select(); }
+      });
+    },
+
+    cancelRename() {
+      this.renamingId = null;
+      this.renameValue = '';
+    },
+
+    async commitRename(id) {
+      const name = this.renameValue.trim();
+      if (!name) { this.cancelRename(); return; }
+      const wf = this.workflows.find(w => w.id === id);
+      if (wf && name === wf.name) { this.cancelRename(); return; }
+
+      const resp = await fetch(`/workflows/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name }),
+      });
+      if (resp.ok) {
+        const updated = await resp.json();
+        this.workflows = this.workflows.map(w => w.id === id ? { ...w, name: updated.name } : w);
+        if (this.activeWorkflow && this.activeWorkflow.id === id) {
+          this.activeWorkflow = { ...this.activeWorkflow, name: updated.name };
+        }
+      }
+      this.cancelRename();
     },
 
     async deleteWorkflow(id) {

@@ -78,6 +78,23 @@ def step_detail(workflow_id: int, step_id: int, request: Request):
     )
 
 
+@router.patch("/workflows/{workflow_id}", response_class=JSONResponse)
+def rename_workflow(
+    workflow_id: int,
+    request: Request,
+    payload: dict = Body(...),
+):
+    cfg = request.app.state.cfg
+    name = payload.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="name is required")
+    try:
+        wf = db.update_workflow(cfg, workflow_id, name)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return wf
+
+
 @router.delete("/workflows/{workflow_id}", status_code=204)
 def delete_workflow(workflow_id: int, request: Request):
     cfg = request.app.state.cfg
