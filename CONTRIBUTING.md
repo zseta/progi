@@ -1,23 +1,24 @@
 # Contributing to Progi
 
-## Before submitting a PR
-Run this:
-```bash
-uv run ruff check progi
-uv run python -m pytest
-```
-
-Both must pass.
-
-Do not submit code that was not reviewed by you (the human). Make sure that you have a good understanding of the code changes you want to introduce.
+## Normal Git flow
+1. Fork the repository on GitHub.
+1. Create a new branch in your fork.
+1. Make your changes
+1. Run this:
+  ```bash
+  uv run ruff check progi
+  uv run python -m pytest
+  ```
+  Both must pass.
+1. Commit changes
+1. Push your branch and open a pull request.
 
 If you are using agents to code, we have an `AGENTS.md` you should use.
 
 Do not edit `CHANGELOG.md`. Changelog entries are generated automatically from commit messages by Release Please.
 
-## Commit message format
-
-Use [Conventional Commits](https://www.conventionalcommits.org/) in your PR title and commits:
+## PR title format
+Use [Conventional Commits](https://www.conventionalcommits.org/) in your PR title:
 
 ```
 <type>: <description>
@@ -36,7 +37,6 @@ Common types:
 
 For breaking changes, add `!` after the type: `feat!: rename task API`.
 
-> PRs are squash-merged by maintainers, who will edit the final commit message if needed — so don't stress about getting every commit perfect, just make sure the PR title follows the format.
 
 ## Docs & content PRs
 You can submit documentation fixes or even new guides/tutorials to share how you use Progi - use cases, workflow examples etc...

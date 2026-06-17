@@ -46,35 +46,54 @@
 
     <template x-for="wf in workflows" :key="wf.id">
       <div class="relative group">
-        <button
-          type="button"
-          @click="selectWorkflow(wf.id)"
-          :class="activeId === wf.id
-            ? 'bg-surface-2 text-primary'
-            : 'text-muted hover:bg-surface-2 hover:text-primary'"
-          class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors duration-150 text-left w-full pr-7"
-        >
-          <span
-            :class="activeId === wf.id ? 'bg-accent' : 'bg-accent-dim group-hover:bg-accent'"
-            class="size-1.5 rounded-full transition-colors duration-150 shrink-0"
-          ></span>
-          <span x-text="wf.name" class="truncate"></span>
-        </button>
+        {# Inline rename input #}
+        <template x-if="renamingId === wf.id">
+          <div class="flex items-center gap-1 px-2 py-1">
+            <input
+              :id="`rename-input-${wf.id}`"
+              type="text"
+              x-model="renameValue"
+              @keydown.enter.prevent="commitRename(wf.id)"
+              @keydown.escape.prevent="cancelRename()"
+              @blur="commitRename(wf.id)"
+              class="flex-1 min-w-0 rounded px-1.5 py-0.5 text-xs bg-surface-0 border border-accent text-primary outline-none"
+            />
+          </div>
+        </template>
 
-        {# 3-dot menu trigger #}
-        <button
-          type="button"
-          @click.stop="openMenuId = openMenuId === wf.id ? null : wf.id"
-          class="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 text-muted hover:text-primary transition-opacity"
-          :class="openMenuId === wf.id ? 'opacity-100' : ''"
-          title="More options"
-        >
-          <svg class="size-3.5" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="8" cy="2.5" r="1.5"/>
-            <circle cx="8" cy="8" r="1.5"/>
-            <circle cx="8" cy="13.5" r="1.5"/>
-          </svg>
-        </button>
+        <template x-if="renamingId !== wf.id">
+          <button
+            type="button"
+            @click="selectWorkflow(wf.id)"
+            :class="activeId === wf.id
+              ? 'bg-surface-2 text-primary'
+              : 'text-muted hover:bg-surface-2 hover:text-primary'"
+            class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors duration-150 text-left w-full pr-7"
+          >
+            <span
+              :class="activeId === wf.id ? 'bg-accent' : 'bg-accent-dim group-hover:bg-accent'"
+              class="size-1.5 rounded-full transition-colors duration-150 shrink-0"
+            ></span>
+            <span x-text="wf.name" class="truncate"></span>
+          </button>
+        </template>
+
+        {# 3-dot menu trigger — hidden while renaming #}
+        <template x-if="renamingId !== wf.id">
+          <button
+            type="button"
+            @click.stop="openMenuId = openMenuId === wf.id ? null : wf.id"
+            class="absolute right-1 top-1/2 -translate-y-1/2 p-0.5 rounded opacity-0 group-hover:opacity-100 text-muted hover:text-primary transition-opacity"
+            :class="openMenuId === wf.id ? 'opacity-100' : ''"
+            title="More options"
+          >
+            <svg class="size-3.5" viewBox="0 0 16 16" fill="currentColor">
+              <circle cx="8" cy="2.5" r="1.5"/>
+              <circle cx="8" cy="8" r="1.5"/>
+              <circle cx="8" cy="13.5" r="1.5"/>
+            </svg>
+          </button>
+        </template>
 
         {# Dropdown #}
         <template x-if="openMenuId === wf.id">
@@ -82,6 +101,11 @@
             class="absolute left-full top-0 ml-1 z-50 min-w-[120px] bg-surface-2 border border-subtle rounded-lg shadow-lg py-1"
             @click.outside="openMenuId = null"
           >
+            <button
+              type="button"
+              @click.stop="startRename(wf)"
+              class="w-full text-left px-3 py-1.5 text-xs text-muted hover:bg-surface-1 hover:text-primary transition-colors"
+            >Rename</button>
             <button
               type="button"
               @click.stop="deleteWorkflow(wf.id)"
