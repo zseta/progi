@@ -115,11 +115,13 @@ def _now() -> datetime:
 
 def _ordered_steps(conn, workflow_id: int) -> list[dict[str, Any]]:
     """Return all steps for a workflow ordered by their display order."""
-    rows = conn.execute(
-        sa.select(steps)
-        .where(steps.c.workflow_id == workflow_id)
-        .order_by(steps.c.order)
-    ).mappings().all()
+    rows = (
+        conn.execute(
+            sa.select(steps).where(steps.c.workflow_id == workflow_id).order_by(steps.c.order)
+        )
+        .mappings()
+        .all()
+    )
     return [dict(r) for r in rows]
 
 
@@ -131,7 +133,8 @@ def _start_step(conn, workflow_id: int) -> dict[str, Any]:
     """
     # All step IDs in this workflow
     all_step_ids = [
-        r[0] for r in conn.execute(
+        r[0]
+        for r in conn.execute(
             sa.select(steps.c.id).where(steps.c.workflow_id == workflow_id)
         ).fetchall()
     ]
@@ -140,30 +143,38 @@ def _start_step(conn, workflow_id: int) -> dict[str, Any]:
 
     # Step IDs that appear as edge targets (i.e. have an incoming edge)
     target_ids = {
-        r[0] for r in conn.execute(
-            sa.select(step_edges.c.to_step_id)
-            .where(step_edges.c.workflow_id == workflow_id)
+        r[0]
+        for r in conn.execute(
+            sa.select(step_edges.c.to_step_id).where(step_edges.c.workflow_id == workflow_id)
         ).fetchall()
     }
 
     entry_candidates = [sid for sid in all_step_ids if sid not in target_ids]
     if not entry_candidates:
         # Cycle or no edges — fall back to lowest order
-        row = conn.execute(
-            sa.select(steps)
-            .where(steps.c.workflow_id == workflow_id)
-            .order_by(steps.c.order)
-            .limit(1)
-        ).mappings().one()
+        row = (
+            conn.execute(
+                sa.select(steps)
+                .where(steps.c.workflow_id == workflow_id)
+                .order_by(steps.c.order)
+                .limit(1)
+            )
+            .mappings()
+            .one()
+        )
         return dict(row)
 
     # Among candidates pick the one with the lowest order
-    row = conn.execute(
-        sa.select(steps)
-        .where(steps.c.id.in_(entry_candidates))
-        .order_by(steps.c.order)
-        .limit(1)
-    ).mappings().one()
+    row = (
+        conn.execute(
+            sa.select(steps)
+            .where(steps.c.id.in_(entry_candidates))
+            .order_by(steps.c.order)
+            .limit(1)
+        )
+        .mappings()
+        .one()
+    )
     return dict(row)
 
 
@@ -189,29 +200,33 @@ def _evaluate_condition(condition: dict | None, output: dict) -> bool:
     return False
 
 
-def _resolve_next_step(
-    conn, current_step_id: int, output: dict
-) -> dict[str, Any] | None:
+def _resolve_next_step(conn, current_step_id: int, output: dict) -> dict[str, Any] | None:
     """Return the next step dict by evaluating outgoing edges, or None if terminal.
 
     Edges are evaluated in ascending priority order. The first edge whose
     condition matches the output is taken. Raises ValueError if edges exist but
     none match.
     """
-    edges = conn.execute(
-        sa.select(step_edges)
-        .where(step_edges.c.from_step_id == current_step_id)
-        .order_by(step_edges.c.priority)
-    ).mappings().all()
+    edges = (
+        conn.execute(
+            sa.select(step_edges)
+            .where(step_edges.c.from_step_id == current_step_id)
+            .order_by(step_edges.c.priority)
+        )
+        .mappings()
+        .all()
+    )
 
     if not edges:
         return None  # terminal step
 
     for edge in edges:
         if _evaluate_condition(edge["condition"], output):
-            row = conn.execute(
-                sa.select(steps).where(steps.c.id == edge["to_step_id"])
-            ).mappings().one()
+            row = (
+                conn.execute(sa.select(steps).where(steps.c.id == edge["to_step_id"]))
+                .mappings()
+                .one()
+            )
             return dict(row)
 
     raise ValueError(
@@ -273,9 +288,7 @@ def save_workflow(
                     requires_approval=step.get("requires_approval", False),
                 )
             ).inserted_primary_key[0]
-            step_row = conn.execute(
-                sa.select(steps).where(steps.c.id == step_id)
-            ).mappings().one()
+            step_row = conn.execute(sa.select(steps).where(steps.c.id == step_id)).mappings().one()
             step_rows.append(dict(step_row))
 
         # Build name → id lookup for edge resolution
@@ -313,14 +326,12 @@ def save_workflow(
             playbook_content = playbooks_by_step.get(step_row["name"])
             if playbook_content:
                 conn.execute(
-                    sa.insert(playbooks).values(
-                        step_id=step_row["id"], content=playbook_content
-                    )
+                    sa.insert(playbooks).values(step_id=step_row["id"], content=playbook_content)
                 )
 
-        workflow = conn.execute(
-            sa.select(workflows).where(workflows.c.id == wf_id)
-        ).mappings().one()
+        workflow = (
+            conn.execute(sa.select(workflows).where(workflows.c.id == wf_id)).mappings().one()
+        )
 
     result = dict(workflow)
     result["steps"] = step_rows
@@ -331,14 +342,12 @@ def list_workflows(cfg: Config) -> list[dict[str, Any]]:
     """Return all workflows with their ordered steps."""
     engine = get_engine(cfg)
     with engine.connect() as conn:
-        wf_rows = conn.execute(
-            sa.select(workflows).order_by(workflows.c.id)
-        ).mappings().all()
-        step_rows = conn.execute(
-            sa.select(steps).order_by(
-                steps.c.workflow_id, steps.c.order
-            )
-        ).mappings().all()
+        wf_rows = conn.execute(sa.select(workflows).order_by(workflows.c.id)).mappings().all()
+        step_rows = (
+            conn.execute(sa.select(steps).order_by(steps.c.workflow_id, steps.c.order))
+            .mappings()
+            .all()
+        )
 
     steps_by_workflow: dict[int, list[dict[str, Any]]] = {}
     for s in step_rows:
@@ -363,29 +372,29 @@ def list_workflows(cfg: Config) -> list[dict[str, Any]]:
     ]
 
 
-def get_playbook_authoring_context(
-    cfg: Config, step_id: int
-) -> dict[str, Any]:
+def get_playbook_authoring_context(cfg: Config, step_id: int) -> dict[str, Any]:
     """Return the workflow + sibling context needed to author a step's playbook."""
     engine = get_engine(cfg)
     with engine.connect() as conn:
-        step = conn.execute(
-            sa.select(steps).where(
-                steps.c.id == step_id
-            )
-        ).mappings().one_or_none()
+        step = conn.execute(sa.select(steps).where(steps.c.id == step_id)).mappings().one_or_none()
         if step is None:
             raise ValueError(f"Step {step_id} not found.")
 
-        wf = conn.execute(
-            sa.select(workflows).where(workflows.c.id == step["workflow_id"])
-        ).mappings().one()
+        wf = (
+            conn.execute(sa.select(workflows).where(workflows.c.id == step["workflow_id"]))
+            .mappings()
+            .one()
+        )
 
-        siblings = conn.execute(
-            sa.select(steps.c.name, steps.c.order)
-            .where(steps.c.workflow_id == step["workflow_id"])
-            .order_by(steps.c.order)
-        ).mappings().all()
+        siblings = (
+            conn.execute(
+                sa.select(steps.c.name, steps.c.order)
+                .where(steps.c.workflow_id == step["workflow_id"])
+                .order_by(steps.c.order)
+            )
+            .mappings()
+            .all()
+        )
 
     return {
         "workflow": dict(wf),
@@ -400,19 +409,15 @@ def delete_workflow(cfg: Config, workflow_id: int) -> None:
     with engine.begin() as conn:
         # tasks.workflow_id has no CASCADE, so delete tasks (and their
         # step_instances via cascade) before touching the workflow.
-        task_ids = conn.execute(
-            sa.select(tasks.c.id).where(tasks.c.workflow_id == workflow_id)
-        ).scalars().all()
-        if task_ids:
-            conn.execute(
-                sa.delete(step_instances).where(step_instances.c.task_id.in_(task_ids))
-            )
-            conn.execute(
-                sa.delete(tasks).where(tasks.c.id.in_(task_ids))
-            )
-        result = conn.execute(
-            sa.delete(workflows).where(workflows.c.id == workflow_id)
+        task_ids = (
+            conn.execute(sa.select(tasks.c.id).where(tasks.c.workflow_id == workflow_id))
+            .scalars()
+            .all()
         )
+        if task_ids:
+            conn.execute(sa.delete(step_instances).where(step_instances.c.task_id.in_(task_ids)))
+            conn.execute(sa.delete(tasks).where(tasks.c.id.in_(task_ids)))
+        result = conn.execute(sa.delete(workflows).where(workflows.c.id == workflow_id))
         if result.rowcount == 0:
             raise ValueError(f"Workflow {workflow_id} not found.")
 
@@ -426,9 +431,9 @@ def update_workflow(cfg: Config, workflow_id: int, name: str) -> dict[str, Any]:
         )
         if result.rowcount == 0:
             raise ValueError(f"Workflow {workflow_id} not found.")
-        row = conn.execute(
-            sa.select(workflows).where(workflows.c.id == workflow_id)
-        ).mappings().one()
+        row = (
+            conn.execute(sa.select(workflows).where(workflows.c.id == workflow_id)).mappings().one()
+        )
     return dict(row)
 
 
@@ -457,41 +462,29 @@ def update_step(
 
     engine = get_engine(cfg)
     with engine.begin() as conn:
-        existing = conn.execute(
-            sa.select(steps.c.id).where(steps.c.id == step_id)
-        ).first()
+        existing = conn.execute(sa.select(steps.c.id).where(steps.c.id == step_id)).first()
         if existing is None:
             raise ValueError(f"Step {step_id} not found.")
         if values:
-            conn.execute(
-                sa.update(steps).where(steps.c.id == step_id).values(**values)
-            )
-        row = conn.execute(
-            sa.select(steps).where(steps.c.id == step_id)
-        ).mappings().one()
+            conn.execute(sa.update(steps).where(steps.c.id == step_id).values(**values))
+        row = conn.execute(sa.select(steps).where(steps.c.id == step_id)).mappings().one()
     return dict(row)
 
 
-def update_playbook(
-    cfg: Config, step_id: int, content: str
-) -> dict[str, Any]:
+def update_playbook(cfg: Config, step_id: int, content: str) -> dict[str, Any]:
     """Upsert the playbook content for a step (insert if none exists)."""
     engine = get_engine(cfg)
     with engine.begin() as conn:
         result = conn.execute(
-            sa.update(playbooks)
-            .where(playbooks.c.step_id == step_id)
-            .values(content=content)
+            sa.update(playbooks).where(playbooks.c.step_id == step_id).values(content=content)
         )
         if result.rowcount == 0:
-            conn.execute(
-                sa.insert(playbooks).values(step_id=step_id, content=content)
-            )
-        row = conn.execute(
-            sa.select(playbooks).where(
-                playbooks.c.step_id == step_id
-            )
-        ).mappings().one()
+            conn.execute(sa.insert(playbooks).values(step_id=step_id, content=content))
+        row = (
+            conn.execute(sa.select(playbooks).where(playbooks.c.step_id == step_id))
+            .mappings()
+            .one()
+        )
     return dict(row)
 
 
@@ -500,9 +493,7 @@ def update_playbook(
 # ---------------------------------------------------------------------------
 
 
-def create_task(
-    cfg: Config, name: str, workflow_id: int, description: str = ""
-) -> dict[str, Any]:
+def create_task(cfg: Config, name: str, workflow_id: int, description: str = "") -> dict[str, Any]:
     """Create a task directly under a workflow.
 
     Does NOT start the task (status stays 'todo', current_step_id stays NULL).
@@ -527,9 +518,7 @@ def create_task(
             )
         ).inserted_primary_key[0]
 
-        task = conn.execute(
-            sa.select(tasks).where(tasks.c.id == task_id)
-        ).mappings().one()
+        task = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().one()
 
     result = dict(task)
     first = _start_step_from_rows(step_rows)
@@ -578,9 +567,7 @@ def start_task(cfg: Config, task_id: int) -> dict[str, Any]:
     """
     engine = get_engine(cfg)
     with engine.begin() as conn:
-        task = conn.execute(
-            sa.select(tasks).where(tasks.c.id == task_id)
-        ).mappings().one_or_none()
+        task = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().one_or_none()
         if task is None:
             raise ValueError(f"Task {task_id} not found.")
         if task["status"] != "todo":
@@ -598,15 +585,11 @@ def start_task(cfg: Config, task_id: int) -> dict[str, Any]:
 
         _activate_step(conn, task_id, task["workflow_id"], first_step, input_data)
 
-        updated = conn.execute(
-            sa.select(tasks).where(tasks.c.id == task_id)
-        ).mappings().one()
+        updated = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().one()
     return dict(updated)
 
 
-def list_tasks(
-    cfg: Config, status: str = "", workflow_id: int = 0
-) -> list[dict[str, Any]]:
+def list_tasks(cfg: Config, status: str = "", workflow_id: int = 0) -> list[dict[str, Any]]:
     """Return a summary list of tasks, optionally filtered by status / workflow."""
     engine = get_engine(cfg)
     sd_alias = steps.alias("sd")
@@ -650,9 +633,7 @@ def start_or_continue_task(cfg: Config, task_id: int) -> dict[str, Any]:
     """
     engine = get_engine(cfg)
     with engine.connect() as conn:
-        task = conn.execute(
-            sa.select(tasks).where(tasks.c.id == task_id)
-        ).mappings().one_or_none()
+        task = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().one_or_none()
         if task is None:
             raise ValueError(f"Task {task_id} not found.")
         if task["status"] == "done":
@@ -665,22 +646,26 @@ def start_or_continue_task(cfg: Config, task_id: int) -> dict[str, Any]:
         task = start_task(cfg, task_id)
 
     with engine.connect() as conn:
-        current_step = conn.execute(
-            sa.select(steps).where(steps.c.id == task["current_step_id"])
-        ).mappings().one()
+        current_step = (
+            conn.execute(sa.select(steps).where(steps.c.id == task["current_step_id"]))
+            .mappings()
+            .one()
+        )
 
-        si = conn.execute(
-            sa.select(step_instances).where(
-                step_instances.c.task_id == task_id,
-                step_instances.c.step_id == current_step["id"],
-                step_instances.c.status == "active",
+        si = (
+            conn.execute(
+                sa.select(step_instances).where(
+                    step_instances.c.task_id == task_id,
+                    step_instances.c.step_id == current_step["id"],
+                    step_instances.c.status == "active",
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
 
         pb = conn.execute(
-            sa.select(playbooks.c.content).where(
-                playbooks.c.step_id == current_step["id"]
-            )
+            sa.select(playbooks.c.content).where(playbooks.c.step_id == current_step["id"])
         ).first()
 
     result: dict[str, Any] = {
@@ -712,13 +697,13 @@ def update_progress_notes(cfg: Config, task_id: int, notes: str) -> dict[str, An
         )
         if result.rowcount == 0:
             raise ValueError(f"Task {task_id} not found.")
-        row = conn.execute(
-            sa.select(tasks).where(tasks.c.id == task_id)
-        ).mappings().one()
+        row = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().one()
     return dict(row)
 
 
-def submit_output(cfg: Config, task_id: int, output: dict[str, Any], task_name: str | None = None) -> dict[str, Any]:
+def submit_output(
+    cfg: Config, task_id: int, output: dict[str, Any], task_name: str | None = None
+) -> dict[str, Any]:
     """Complete the current step, evaluate edge conditions, then advance or finish.
 
     Marks the active step instance complete (stores output + completed_at),
@@ -732,9 +717,7 @@ def submit_output(cfg: Config, task_id: int, output: dict[str, Any], task_name: 
     """
     engine = get_engine(cfg)
     with engine.begin() as conn:
-        task = conn.execute(
-            sa.select(tasks).where(tasks.c.id == task_id)
-        ).mappings().one_or_none()
+        task = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().one_or_none()
         if task is None:
             raise ValueError(f"Task {task_id} not found.")
         if task["status"] == "done":
@@ -742,17 +725,23 @@ def submit_output(cfg: Config, task_id: int, output: dict[str, Any], task_name: 
         if task["status"] == "todo":
             raise ValueError(f"Task {task_id} has not been started yet.")
 
-        current_step = conn.execute(
-            sa.select(steps).where(steps.c.id == task["current_step_id"])
-        ).mappings().one()
+        current_step = (
+            conn.execute(sa.select(steps).where(steps.c.id == task["current_step_id"]))
+            .mappings()
+            .one()
+        )
 
-        current_si = conn.execute(
-            sa.select(step_instances).where(
-                step_instances.c.task_id == task_id,
-                step_instances.c.step_id == current_step["id"],
-                step_instances.c.status == "active",
+        current_si = (
+            conn.execute(
+                sa.select(step_instances).where(
+                    step_instances.c.task_id == task_id,
+                    step_instances.c.step_id == current_step["id"],
+                    step_instances.c.status == "active",
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         if current_si is None:
             raise ValueError(
                 f"No active step instance found for task {task_id} "
@@ -768,11 +757,7 @@ def submit_output(cfg: Config, task_id: int, output: dict[str, Any], task_name: 
 
         # Optionally rename the task now that the agent has more context
         if task_name:
-            conn.execute(
-                sa.update(tasks)
-                .where(tasks.c.id == task_id)
-                .values(name=task_name)
-            )
+            conn.execute(sa.update(tasks).where(tasks.c.id == task_id).values(name=task_name))
 
         # Resolve next step via edge conditions
         next_step = _resolve_next_step(conn, current_step["id"], output)
@@ -799,9 +784,7 @@ def submit_output(cfg: Config, task_id: int, output: dict[str, Any], task_name: 
                     )
                 ).first()
                 if source_step_row is None:
-                    raise ValueError(
-                        f"from_step '{from_step_name}' not found in workflow."
-                    )
+                    raise ValueError(f"from_step '{from_step_name}' not found in workflow.")
                 source_si = conn.execute(
                     sa.select(step_instances.c.output).where(
                         step_instances.c.task_id == task_id,
@@ -840,9 +823,7 @@ def submit_output(cfg: Config, task_id: int, output: dict[str, Any], task_name: 
         )
 
         pb = conn.execute(
-            sa.select(playbooks.c.content).where(
-                playbooks.c.step_id == next_step["id"]
-            )
+            sa.select(playbooks.c.content).where(playbooks.c.step_id == next_step["id"])
         ).first()
 
     return {
@@ -864,28 +845,42 @@ def get_workflow_with_playbooks(cfg: Config, workflow_id: int) -> dict[str, Any]
     """Return a single workflow with its steps, edges, and playbook content."""
     engine = get_engine(cfg)
     with engine.connect() as conn:
-        wf = conn.execute(
-            sa.select(workflows).where(workflows.c.id == workflow_id)
-        ).mappings().one_or_none()
+        wf = (
+            conn.execute(sa.select(workflows).where(workflows.c.id == workflow_id))
+            .mappings()
+            .one_or_none()
+        )
         if wf is None:
             raise ValueError(f"Workflow {workflow_id} not found.")
 
-        step_rows = conn.execute(
-            sa.select(steps)
-            .where(steps.c.workflow_id == workflow_id)
-            .order_by(steps.c.order)
-        ).mappings().all()
+        step_rows = (
+            conn.execute(
+                sa.select(steps).where(steps.c.workflow_id == workflow_id).order_by(steps.c.order)
+            )
+            .mappings()
+            .all()
+        )
 
         step_ids = [s["id"] for s in step_rows]
-        pb_rows = conn.execute(
-            sa.select(playbooks).where(playbooks.c.step_id.in_(step_ids))
-        ).mappings().all() if step_ids else []
+        pb_rows = (
+            conn.execute(sa.select(playbooks).where(playbooks.c.step_id.in_(step_ids)))
+            .mappings()
+            .all()
+            if step_ids
+            else []
+        )
 
-        edge_rows = conn.execute(
-            sa.select(step_edges)
-            .where(step_edges.c.workflow_id == workflow_id)
-            .order_by(step_edges.c.from_step_id, step_edges.c.priority)
-        ).mappings().all() if step_ids else []
+        edge_rows = (
+            conn.execute(
+                sa.select(step_edges)
+                .where(step_edges.c.workflow_id == workflow_id)
+                .order_by(step_edges.c.from_step_id, step_edges.c.priority)
+            )
+            .mappings()
+            .all()
+            if step_ids
+            else []
+        )
 
     playbook_by_step = {pb["step_id"]: pb["content"] for pb in pb_rows}
 
@@ -916,37 +911,42 @@ def get_workflow_with_playbooks(cfg: Config, workflow_id: int) -> dict[str, Any]
     }
 
 
-def get_step_detail(
-    cfg: Config, workflow_id: int, step_id: int
-) -> dict[str, Any]:
+def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, Any]:
     """Return a single step with its playbook, and derived prev/next steps."""
     engine = get_engine(cfg)
     with engine.connect() as conn:
-        wf = conn.execute(
-            sa.select(workflows.c.id, workflows.c.name)
-            .where(workflows.c.id == workflow_id)
-        ).mappings().one_or_none()
+        wf = (
+            conn.execute(
+                sa.select(workflows.c.id, workflows.c.name).where(workflows.c.id == workflow_id)
+            )
+            .mappings()
+            .one_or_none()
+        )
         if wf is None:
             raise ValueError(f"Workflow {workflow_id} not found.")
 
-        step = conn.execute(
-            sa.select(steps).where(
-                steps.c.id == step_id,
-                steps.c.workflow_id == workflow_id,
+        step = (
+            conn.execute(
+                sa.select(steps).where(
+                    steps.c.id == step_id,
+                    steps.c.workflow_id == workflow_id,
+                )
             )
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         if step is None:
             raise ValueError(f"Step {step_id} not found in workflow {workflow_id}.")
 
         pb = conn.execute(
-            sa.select(playbooks.c.content)
-            .where(playbooks.c.step_id == step_id)
+            sa.select(playbooks.c.content).where(playbooks.c.step_id == step_id)
         ).scalar()
 
-        edge_rows = conn.execute(
-            sa.select(step_edges)
-            .where(step_edges.c.workflow_id == workflow_id)
-        ).mappings().all()
+        edge_rows = (
+            conn.execute(sa.select(step_edges).where(step_edges.c.workflow_id == workflow_id))
+            .mappings()
+            .all()
+        )
 
         # Collect neighbour step IDs
         prev_ids = {e["from_step_id"] for e in edge_rows if e["to_step_id"] == step_id}
@@ -955,10 +955,13 @@ def get_step_detail(
 
         step_names: dict[int, str] = {}
         if neighbour_ids:
-            name_rows = conn.execute(
-                sa.select(steps.c.id, steps.c.name)
-                .where(steps.c.id.in_(neighbour_ids))
-            ).mappings().all()
+            name_rows = (
+                conn.execute(
+                    sa.select(steps.c.id, steps.c.name).where(steps.c.id.in_(neighbour_ids))
+                )
+                .mappings()
+                .all()
+            )
             step_names = {r["id"]: r["name"] for r in name_rows}
 
     # Build prev/next with conditions
@@ -1000,21 +1003,25 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
     """Return a task with its full step-instance history for the task detail modal."""
     engine = get_engine(cfg)
     with engine.connect() as conn:
-        row = conn.execute(
-            sa.select(
-                tasks.c.id,
-                tasks.c.name,
-                tasks.c.description,
-                tasks.c.status,
-                tasks.c.current_step_id,
-                tasks.c.progress_notes,
-                tasks.c.created_at,
-                workflows.c.id.label("workflow_id"),
-                workflows.c.name.label("workflow_name"),
+        row = (
+            conn.execute(
+                sa.select(
+                    tasks.c.id,
+                    tasks.c.name,
+                    tasks.c.description,
+                    tasks.c.status,
+                    tasks.c.current_step_id,
+                    tasks.c.progress_notes,
+                    tasks.c.created_at,
+                    workflows.c.id.label("workflow_id"),
+                    workflows.c.name.label("workflow_name"),
+                )
+                .select_from(tasks.join(workflows, workflows.c.id == tasks.c.workflow_id))
+                .where(tasks.c.id == task_id)
             )
-            .select_from(tasks.join(workflows, workflows.c.id == tasks.c.workflow_id))
-            .where(tasks.c.id == task_id)
-        ).mappings().one_or_none()
+            .mappings()
+            .one_or_none()
+        )
         if row is None:
             raise ValueError(f"Task {task_id} not found.")
 
@@ -1028,26 +1035,28 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
             ).scalar()
 
         # Step-instance history (most recent first via id desc)
-        si_rows = conn.execute(
-            sa.select(
-                step_instances.c.id,
-                step_instances.c.step_id,
-                step_instances.c.status,
-                step_instances.c.input_data,
-                step_instances.c.output,
-                step_instances.c.completed_at,
-                steps.c.name.label("step_name"),
+        si_rows = (
+            conn.execute(
+                sa.select(
+                    step_instances.c.id,
+                    step_instances.c.step_id,
+                    step_instances.c.status,
+                    step_instances.c.input_data,
+                    step_instances.c.output,
+                    step_instances.c.completed_at,
+                    steps.c.name.label("step_name"),
+                )
+                .select_from(step_instances.join(steps, steps.c.id == step_instances.c.step_id))
+                .where(step_instances.c.task_id == task_id)
+                .order_by(
+                    # Active instance floats to top, then newest first
+                    sa.case((step_instances.c.status == "active", 0), else_=1),
+                    step_instances.c.id.desc(),
+                )
             )
-            .select_from(
-                step_instances.join(steps, steps.c.id == step_instances.c.step_id)
-            )
-            .where(step_instances.c.task_id == task_id)
-            .order_by(
-                # Active instance floats to top, then newest first
-                sa.case((step_instances.c.status == "active", 0), else_=1),
-                step_instances.c.id.desc(),
-            )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
 
     return {
         "task": {
