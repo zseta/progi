@@ -110,3 +110,31 @@
 .prose hr { border-color: var(--color-border); margin: 1em 0; }
 .prose :first-child { margin-top: 0; }
 .prose :last-child  { margin-bottom: 0; }
+
+/* Compact prose variant for progress notes panel */
+.prose-notes h1, .prose-notes h2, .prose-notes h3,
+.prose-notes h4, .prose-notes h5, .prose-notes h6 {
+  color: var(--color-text-primary);
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 1em;
+  margin-bottom: 0.25em;
+}
+.prose-notes h1, .prose-notes h2 { font-size: 1em; }
+.prose-notes h3, .prose-notes h4 { font-size: 0.9em; }
+.prose-notes p  { margin-top: 0.25em; margin-bottom: 0.25em; color: var(--color-text-secondary); }
+.prose-notes ul, .prose-notes ol { padding-left: 1.25em; margin-top: 0.25em; margin-bottom: 0.25em; color: var(--color-text-secondary); }
+.prose-notes ul { list-style-type: disc; }
+.prose-notes ol { list-style-type: decimal; }
+.prose-notes li { margin-top: 0.15em; margin-bottom: 0.15em; }
+.prose-notes strong { color: var(--color-text-primary); font-weight: 600; }
+.prose-notes em { font-style: italic; }
+.prose-notes code {
+  font-family: var(--font-mono);
+  background-color: var(--color-surface-3);
+  border-radius: 0.25em;
+  padding: 0.1em 0.3em;
+  font-size: 0.85em;
+}
+.prose-notes :first-child { margin-top: 0; }
+.prose-notes :last-child  { margin-bottom: 0; }

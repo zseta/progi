@@ -54,9 +54,31 @@
 
     {# Progress notes #}
     <template x-if="task.progress_notes">
-      <section>
-        <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Progress notes</p>
-        <p class="text-xs italic text-secondary leading-relaxed" x-text="task.progress_notes"></p>
+      <section x-data="{ expanded: false }" class="border border-subtle rounded-lg">
+        <button
+          type="button"
+          @click="expanded = !expanded"
+          class="w-full flex items-center justify-between px-3 py-2.5 hover:bg-surface-2 transition-colors"
+        >
+          <span class="text-xs font-semibold uppercase tracking-widest text-faint">Progress notes</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="size-3 text-faint transition-transform duration-150"
+            :class="expanded ? 'rotate-180' : ''"
+            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+          >
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </button>
+        <div
+          x-show="expanded"
+          x-transition:enter="transition-all duration-150 ease-out"
+          x-transition:enter-start="opacity-0 -translate-y-1"
+          x-transition:enter-end="opacity-100 translate-y-0"
+          class="border-t border-subtle"
+        >
+          <div class="prose-notes text-xs text-secondary leading-relaxed min-h-24 max-h-64 overflow-y-auto px-3 pt-3 pb-3" x-html="marked.parse(task.progress_notes)"></div>
+        </div>
       </section>
     </template>
 
