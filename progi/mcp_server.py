@@ -56,6 +56,8 @@ def create_task(name: str, workflow_id: int, description: str = "") -> dict:
     Creates the task (status 'todo') and returns the task plus a preview of its
     first step. Before calling this, confirm the workflow choice with the user
     AND ask them what they want to name the task.
+
+    Always show the user the monitoring_url from the response.
     """
     result = db.create_task(_cfg, name, workflow_id, description)
     result["monitoring_url"] = _monitoring_url(f"/tasks/{result['id']}")
@@ -67,6 +69,8 @@ def list_tasks(status: str = "", workflow_id: int = 0) -> dict:
     """List tasks, optionally filtered by status and/or workflow_id.
 
     Empty string / 0 means no filter. "My todos" = status="todo".
+
+    Always show the user the monitoring_url from the response.
     """
     return {"tasks": db.list_tasks(_cfg, status, workflow_id), "monitoring_url": _monitoring_url("/")}
 
@@ -86,6 +90,8 @@ def start_or_continue_task(task_id: int) -> dict:
     Before calling submit_output, verify that your output satisfies output_spec
     (correct type, meets constraints, includes any fields referenced by branching
     conditions).
+
+    Always show the user the monitoring_url from the response.
     """
     result = db.start_or_continue_task(_cfg, task_id)
     result["monitoring_url"] = _monitoring_url(f"/tasks/{task_id}")
@@ -103,7 +109,7 @@ def update_progress_notes(task_id: int, notes: str) -> dict:
 
 
 @mcp.tool(title="Submit Output")
-def submit_output(task_id: int, output: dict, task_name: str = "") -> dict:
+def submit_output(task_id: int, output: dict | str, task_name: str = "") -> dict:
     """Mark the current step complete, store its output, and advance.
 
     Either returns the next step's info (name + playbook, so the agent can
@@ -119,6 +125,8 @@ def submit_output(task_id: int, output: dict, task_name: str = "") -> dict:
     Only call submit_output once the user has confirmed they are happy with the
     output. If they request changes, make them first, then ask again.
     """
+    if isinstance(output, str):
+        output = json.loads(output)
     return db.submit_output(_cfg, task_id, output, task_name or None)
 
 
@@ -180,6 +188,8 @@ def save_workflow(skeleton: dict, playbooks_by_step: dict) -> dict:
 
     skeleton: the JSON object produced by Pass 1 (process skeleton prompt).
     playbooks_by_step: mapping of step name → playbook markdown string.
+
+    After saving, always show the user the monitoring_url from the response.
     """
     result = db.save_workflow(_cfg, skeleton, playbooks_by_step)
     workflow_id = result.pop("id", None)
@@ -193,7 +203,10 @@ def save_workflow(skeleton: dict, playbooks_by_step: dict) -> dict:
 
 @mcp.tool(title="List Workflows")
 def list_workflows() -> dict:
-    """Return all workflows with their ordered steps."""
+    """Return all workflows with their ordered steps.
+
+    Always show the user the monitoring_url from the response.
+    """
     return {"workflows": db.list_workflows(_cfg), "monitoring_url": _monitoring_url("/workflows")}
 
 
