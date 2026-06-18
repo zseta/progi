@@ -18,6 +18,7 @@ Flags override environment variables; environment variables override defaults.
 from __future__ import annotations
 
 import argparse
+import os
 import threading
 
 from . import mcp_server
@@ -77,7 +78,14 @@ def main() -> None:
         _start_web_in_thread(cfg)
 
     # Foreground: MCP server over stdio. Blocks until the client disconnects.
-    mcp_server.run(cfg)
+    try:
+        mcp_server.run(cfg)
+    finally:
+        # Force-exit so the daemon web thread (and its bound port) are released
+        # immediately. Without this, an exception or clean return from mcp.run()
+        # may leave the uvicorn daemon thread holding port 8000 until the OS
+        # reclaims it, causing "address already in use" on the next start.
+        os._exit(0)
 
 
 if __name__ == "__main__":
