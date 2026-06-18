@@ -80,6 +80,8 @@ function workflowEditor() {
         flowchart: {
           curve: 'basis',
           useMaxWidth: false,
+          nodeSpacing: 20,
+          rankSpacing: 30,
         },
         securityLevel: 'loose', // needed so we can attach click handlers
       });
