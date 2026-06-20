@@ -40,9 +40,10 @@ from typing import Any
 import sqlalchemy as sa
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import IntegrityError
 
 from .config import Config
-from .models import playbooks, step_edges, step_instances, steps, tasks, workflows
+from .models import library_entries, playbooks, step_edges, step_instances, steps, tasks, workflows
 from .models import metadata  # noqa: F401 — re-exported for test helpers
 
 # ---------------------------------------------------------------------------
@@ -50,6 +51,11 @@ from .models import metadata  # noqa: F401 — re-exported for test helpers
 # ---------------------------------------------------------------------------
 
 _engine: Engine | None = None
+
+
+def _serialize_row(row: Any) -> dict[str, Any]:
+    """Convert a SQLAlchemy mapping row to a plain dict, serializing datetimes to ISO strings."""
+    return {k: (v.isoformat() if isinstance(v, datetime) else v) for k, v in dict(row).items()}
 
 
 def _apply_sqlite_pragmas(dbapi_conn, _connection_record) -> None:
@@ -1000,6 +1006,7 @@ def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, An
             "input_spec": step["input_spec"],
             "output_spec": step["output_spec"],
             "playbook": pb,
+            "library_entry_id": step["library_entry_id"],
         },
         "prev_steps": prev_steps,
         "next_steps": next_steps,
@@ -1145,4 +1152,186 @@ def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None) -> lis
 
     with engine.connect() as conn:
         rows = conn.execute(query).mappings().all()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Library
+# ---------------------------------------------------------------------------
+
+
+def list_library_entries(cfg: Config) -> list[dict[str, Any]]:
+    """Return all library entries ordered by name."""
+    engine = get_engine(cfg)
+    with engine.connect() as conn:
+        rows = (
+            conn.execute(sa.select(library_entries).order_by(library_entries.c.name))
+            .mappings()
+            .all()
+        )
+    return [_serialize_row(r) for r in rows]
+
+
+def get_library_entry(cfg: Config, entry_id: int) -> dict[str, Any]:
+    """Return a single library entry; raises ValueError if not found."""
+    engine = get_engine(cfg)
+    with engine.connect() as conn:
+        row = (
+            conn.execute(
+                sa.select(library_entries).where(library_entries.c.id == entry_id)
+            )
+            .mappings()
+            .one_or_none()
+        )
+    if row is None:
+        raise ValueError(f"Library entry {entry_id} not found.")
+    return _serialize_row(row)
+
+
+def create_library_entry(
+    cfg: Config, name: str, description: str, playbook: str
+) -> dict[str, Any]:
+    """Create a new library entry and return it."""
+    engine = get_engine(cfg)
+    try:
+        with engine.begin() as conn:
+            entry_id = conn.execute(
+                sa.insert(library_entries).values(
+                    name=name,
+                    description=description or None,
+                    playbook=playbook,
+                )
+            ).inserted_primary_key[0]
+            row = (
+                conn.execute(
+                    sa.select(library_entries).where(library_entries.c.id == entry_id)
+                )
+                .mappings()
+                .one()
+            )
+    except IntegrityError:
+        raise ValueError(f"A library entry named '{name}' already exists.")
+    return _serialize_row(row)
+
+
+def update_library_entry(
+    cfg: Config,
+    entry_id: int,
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    playbook: str | None = None,
+) -> dict[str, Any]:
+    """Update a library entry (only non-None fields are changed)."""
+    engine = get_engine(cfg)
+    values: dict[str, Any] = {}
+    if name is not None:
+        values["name"] = name
+    if description is not None:
+        values["description"] = description
+    if playbook is not None:
+        values["playbook"] = playbook
+    if not values:
+        return get_library_entry(cfg, entry_id)
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(
+                sa.update(library_entries)
+                .where(library_entries.c.id == entry_id)
+                .values(**values)
+            )
+            if result.rowcount == 0:
+                raise ValueError(f"Library entry {entry_id} not found.")
+            row = (
+                conn.execute(
+                    sa.select(library_entries).where(library_entries.c.id == entry_id)
+                )
+                .mappings()
+                .one()
+            )
+    except IntegrityError:
+        raise ValueError(f"A library entry named '{values['name']}' already exists.")
+    return _serialize_row(row)
+
+
+def delete_library_entry(cfg: Config, entry_id: int) -> None:
+    """Delete a library entry; steps referencing it will have library_entry_id set to NULL."""
+    engine = get_engine(cfg)
+    with engine.begin() as conn:
+        conn.execute(
+            sa.delete(library_entries).where(library_entries.c.id == entry_id)
+        )
+
+
+def create_library_entry_from_step(
+    cfg: Config, step_id: int, name: str, description: str
+) -> dict[str, Any]:
+    """Create a library entry from an existing step's playbook and link it back."""
+    engine = get_engine(cfg)
+    try:
+        with engine.begin() as conn:
+            pb_content = conn.execute(
+                sa.select(playbooks.c.content).where(playbooks.c.step_id == step_id)
+            ).scalar()
+            if pb_content is None:
+                pb_content = ""
+            entry_id = conn.execute(
+                sa.insert(library_entries).values(
+                    name=name,
+                    description=description or None,
+                    playbook=pb_content,
+                )
+            ).inserted_primary_key[0]
+            conn.execute(
+                sa.update(steps)
+                .where(steps.c.id == step_id)
+                .values(library_entry_id=entry_id)
+            )
+            row = (
+                conn.execute(
+                    sa.select(library_entries).where(library_entries.c.id == entry_id)
+                )
+                .mappings()
+                .one()
+            )
+    except IntegrityError:
+        raise ValueError(f"A library entry named '{name}' already exists.")
+    return _serialize_row(row)
+
+
+def get_library_entry_workflows(cfg: Config, entry_id: int) -> list[dict[str, Any]]:
+    """Return all workflows/steps that link to the given library entry."""
+    engine = get_engine(cfg)
+    with engine.connect() as conn:
+        rows = (
+            conn.execute(
+                sa.select(
+                    steps.c.id.label("step_id"),
+                    steps.c.name.label("step_name"),
+                    workflows.c.id.label("workflow_id"),
+                    workflows.c.name.label("workflow_name"),
+                )
+                .select_from(steps.join(workflows, workflows.c.id == steps.c.workflow_id))
+                .where(steps.c.library_entry_id == entry_id)
+                .order_by(workflows.c.name, steps.c.order)
+            )
+            .mappings()
+            .all()
+        )
+    return [dict(r) for r in rows]
+
+
+def get_library_entries_summary(cfg: Config) -> list[dict[str, Any]]:
+    """Return [{name, description}] for all library entries — for MCP prompt injection."""
+    engine = get_engine(cfg)
+    with engine.connect() as conn:
+        rows = (
+            conn.execute(
+                sa.select(library_entries.c.name, library_entries.c.description).order_by(
+                    library_entries.c.name
+                )
+            )
+            .mappings()
+            .all()
+        )
     return [dict(r) for r in rows]

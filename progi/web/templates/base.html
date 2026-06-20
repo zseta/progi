@@ -55,6 +55,13 @@
            x-cloak>
           Workflows
         </a>
+        <a href="/library"
+           x-target.push="page-content"
+           :class="{ 'text-primary': page.startsWith('/library'), 'text-faint hover:text-muted': !page.startsWith('/library') }"
+           class="text-xs font-medium transition-colors duration-150"
+           x-cloak>
+          Library
+        </a>
       </div>
     </nav>
 

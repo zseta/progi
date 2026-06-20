@@ -1,4 +1,4 @@
-<script type="application/json" id="step-detail-data">{{ {"workflowId": workflow.id, "stepId": step.id, "stepName": step.name, "inputSpec": step.input_spec, "outputSpec": step.output_spec, "playbook": (step.playbook or ""), "prevSteps": prev_steps, "nextSteps": next_steps} | tojson }}</script>
+<script type="application/json" id="step-detail-data">{{ {"workflowId": workflow.id, "stepId": step.id, "stepName": step.name, "inputSpec": step.input_spec, "outputSpec": step.output_spec, "playbook": (step.playbook or ""), "prevSteps": prev_steps, "nextSteps": next_steps, "libraryEntryId": step.library_entry_id} | tojson }}</script>
 <div
   id="step-detail"
   x-data="stepDetail()"
@@ -153,7 +153,37 @@
 
     {# Playbook #}
     <section>
-      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Playbook</p>
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-xs font-semibold uppercase tracking-widest text-faint">Playbook</p>
+        <div class="flex items-center gap-3">
+          <a
+            :href="`/library?new=1&from_step=${stepId}`"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-1 text-xs text-faint hover:text-primary transition-colors"
+            title="Save to library"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            Save to library
+          </a>
+          <template x-if="libraryEntryId">
+            <a
+              :href="`/library/${libraryEntryId}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="flex items-center gap-1 text-xs text-accent hover:underline transition-colors"
+              title="View in library"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              View in library
+            </a>
+          </template>
+        </div>
+      </div>
       {# Display mode — rendered markdown #}
       <div x-show="!editing.playbook" class="relative group">
         <template x-if="playbook">

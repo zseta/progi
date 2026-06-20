@@ -334,6 +334,7 @@ function stepDetail() {
     playbook: '',
     prevSteps: [],
     nextSteps: [],
+    libraryEntryId: null,
     editing: { input_spec: false, output_spec: false, playbook: false },
     drafts:  { input_spec: '',    output_spec: '',    playbook: ''    },
     errors:  { input_spec: '',    output_spec: ''                     },
@@ -392,6 +393,154 @@ function stepDetail() {
       container.innerHTML = html;
       Alpine.initTree(container);
       history.replaceState(null, '', `/workflows/${this.workflowId}/steps/${targetStepId}`);
+    },
+
+    renderMarkdown(content) {
+      return marked.parse(content || '');
+    },
+  };
+}
+
+function libraryView() {
+  return {
+    entries: [],
+    modalOpen: false,
+    newFormOpen: false,
+    newForm: { name: '', description: '', playbook: '', error: '' },
+    _prefillFromStep: null,
+
+    init() {
+      const data = JSON.parse(document.getElementById('library-data').textContent);
+      this.entries = data.entries || [];
+
+
+      // Pre-fill new form if ?new=1&from_step=N is in the URL
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('new') === '1' && params.get('from_step')) {
+        this._prefillFromStep = parseInt(params.get('from_step'));
+        this.openNewForm();
+      } else if (data.openEntryId) {
+        // Deep-link: /library/{id} — open modal for that entry
+        this.openEntry(data.openEntryId);
+      }
+    },
+
+    async openNewForm() {
+      this.newForm = { name: '', description: '', playbook: '', error: '' };
+      if (this._prefillFromStep) {
+        try {
+          const resp = await fetch(`/library/prefill?from_step=${this._prefillFromStep}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            this.newForm.name = data.name || '';
+            this.newForm.playbook = data.playbook || '';
+          }
+        } catch (_) {}
+      }
+      this.newFormOpen = true;
+    },
+
+    closeNewForm() {
+      this.newFormOpen = false;
+      this._prefillFromStep = null;
+    },
+
+    async saveNewEntry() {
+      const name = this.newForm.name.trim();
+      if (!name) return;
+      const body = {
+        name,
+        description: this.newForm.description.trim(),
+        playbook: this.newForm.playbook.trim(),
+      };
+      if (this._prefillFromStep) {
+        body.from_step = this._prefillFromStep;
+      }
+      const resp = await fetch('/library', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (resp.ok) {
+        const entry = await resp.json();
+        this.entries = [...this.entries, entry].sort((a, b) => a.name.localeCompare(b.name));
+        this.closeNewForm();
+        this.openEntry(entry.id);
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        this.newForm.error = err.detail || 'Failed to save entry.';
+      }
+    },
+
+    async openEntry(entryId) {
+      this.modalOpen = true;
+      await this.$nextTick();
+      const container = document.getElementById('library-entry-detail');
+      const resp = await fetch(`/library/${entryId}/detail`);
+      const html = await resp.text();
+      container.innerHTML = html;
+      Alpine.initTree(container);
+      history.replaceState(null, '', `/library/${entryId}`);
+    },
+
+    closeModal() {
+      this.modalOpen = false;
+      history.replaceState(null, '', '/library');
+    },
+
+    async deleteEntry(entryId) {
+      if (!confirm('Delete this library entry? Steps that used it will keep their playbook — only the library link is removed.')) return;
+      const resp = await fetch(`/library/${entryId}`, { method: 'DELETE' });
+      if (resp.ok) {
+        this.entries = this.entries.filter(e => e.id !== entryId);
+        if (this.modalOpen) this.closeModal();
+      }
+    },
+  };
+}
+
+function libraryEntryDetail() {
+  return {
+    entry: null,
+    usedBy: [],
+    editing: { name: false, description: false, playbook: false },
+    drafts:  { name: '',    description: '',    playbook: ''    },
+    errors:  { name: '',    description: '',    playbook: ''    },
+
+    init() {
+      const data = JSON.parse(document.getElementById('library-entry-detail-data').textContent);
+      this.entry = data.entry;
+      this.usedBy = data.usedBy || [];
+    },
+
+    startEdit(field, value) {
+      this.drafts[field] = value ?? '';
+      this.errors[field] = '';
+      this.editing[field] = true;
+    },
+
+    cancelEdit(field) {
+      this.editing[field] = false;
+      this.errors[field] = '';
+    },
+
+    async saveEdit(field) {
+      const body = { [field]: this.drafts[field] };
+      const resp = await fetch(`/library/${this.entry.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (resp.ok) {
+        this.entry = { ...this.entry, [field]: this.drafts[field] };
+        this.editing[field] = false;
+        this.errors[field] = '';
+        // Notify the parent libraryView to update its card list
+        this.$dispatch('library-entry-updated', { id: this.entry.id, field, value: this.drafts[field] });
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        this.errors[field] = err.detail || 'Failed to save.';
+      }
     },
 
     renderMarkdown(content) {

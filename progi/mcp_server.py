@@ -138,6 +138,23 @@ def submit_output(task_id: int, output: dict | str, task_name: str = "") -> dict
 # ---------------------------------------------------------------------------
 
 
+def _library_block() -> str:
+    """Return a markdown section listing all library entries, or empty string if none."""
+    entries = db.get_library_entries_summary(_cfg)
+    if not entries:
+        return ""
+    lines = [
+        "\n\n## Step Library\n\n"
+        "These reusable step playbooks exist in the library. "
+        "When a step in the workflow closely matches one, mention it to the user "
+        "so they can decide whether to base the playbook on the library entry:\n"
+    ]
+    for e in entries:
+        desc = e["description"] or "(no description)"
+        lines.append(f"- **{e['name']}**: {desc}")
+    return "\n".join(lines)
+
+
 @mcp.tool(title="Get Process Skeleton Prompt")
 def get_process_skeleton_prompt() -> str:
     """Return the Pass 1 system prompt for authoring a new workflow's skeleton.
@@ -146,7 +163,7 @@ def get_process_skeleton_prompt() -> str:
     description into a structured process skeleton (steps with input/output specs,
     no playbooks yet).
     """
-    return _WORKFLOW_SKELETON_MD.read_text(encoding="utf-8")
+    return _WORKFLOW_SKELETON_MD.read_text(encoding="utf-8") + _library_block()
 
 
 @mcp.tool(title="Get Playbook Authoring Prompt")
@@ -185,7 +202,9 @@ def get_playbook_authoring_prompt(step_id: int) -> str:
 ---
 
 """
-    return context_block + _PLAYBOOK_MD.read_text(encoding="utf-8")
+    library = _library_block()
+    separator = "\n\n---\n\n" if library else ""
+    return context_block + library + separator + _PLAYBOOK_MD.read_text(encoding="utf-8")
 
 
 @mcp.tool(title="Save Workflow")

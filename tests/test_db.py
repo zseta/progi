@@ -352,6 +352,98 @@ def test_board_tasks(monkeypatch):
         assert any(t["id"] == task["id"] for t in board)
 
 
+def _make_one_step_workflow(db, cfg, name="Lib Test", playbook_content="# My Playbook"):
+    skeleton = {
+        "name": name,
+        "description": "for library tests",
+        "process": [
+            {"order": 1, "name": "Only", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
+        ],
+    }
+    wf = db.save_workflow(cfg, skeleton, {"Only": playbook_content})
+    return wf
+
+
+def test_create_library_entry_from_step(monkeypatch):
+    with _fresh_db(monkeypatch) as cfg:
+        from progi import db
+
+        wf = _make_one_step_workflow(db, cfg, playbook_content="# Step Playbook")
+        step_id = wf["steps"][0]["id"]
+
+        entry = db.create_library_entry_from_step(cfg, step_id, "My Entry", "A description")
+        assert entry["name"] == "My Entry"
+        assert entry["description"] == "A description"
+        assert entry["playbook"] == "# Step Playbook"
+
+        # Step should now be linked back to the entry
+        linked = db.get_library_entry_workflows(cfg, entry["id"])
+        assert len(linked) == 1
+        assert linked[0]["step_id"] == step_id
+
+
+def test_get_library_entry_workflows(monkeypatch):
+    with _fresh_db(monkeypatch) as cfg:
+        from progi import db
+        from progi.db import get_engine
+        from progi.models import steps
+        import sqlalchemy as sa
+
+        entry = db.create_library_entry(cfg, "Shared Entry", "desc", "# Shared")
+
+        wf1 = _make_one_step_workflow(db, cfg, name="WF1")
+        wf2 = _make_one_step_workflow(db, cfg, name="WF2")
+        step1_id = wf1["steps"][0]["id"]
+        step2_id = wf2["steps"][0]["id"]
+
+        engine = get_engine(cfg)
+        with engine.begin() as conn:
+            conn.execute(sa.update(steps).where(steps.c.id == step1_id).values(library_entry_id=entry["id"]))
+            conn.execute(sa.update(steps).where(steps.c.id == step2_id).values(library_entry_id=entry["id"]))
+
+        results = db.get_library_entry_workflows(cfg, entry["id"])
+        assert len(results) == 2
+        step_ids = {r["step_id"] for r in results}
+        assert step_ids == {step1_id, step2_id}
+        wf_names = {r["workflow_name"] for r in results}
+        assert wf_names == {"WF1", "WF2"}
+
+
+def test_delete_library_entry_nullifies_step_fk(monkeypatch):
+    with _fresh_db(monkeypatch) as cfg:
+        from progi import db
+        from progi.db import get_engine
+        from progi.models import steps
+        import sqlalchemy as sa
+
+        wf = _make_one_step_workflow(db, cfg, playbook_content="# pb")
+        step_id = wf["steps"][0]["id"]
+        entry = db.create_library_entry_from_step(cfg, step_id, "To Delete", "desc")
+
+        db.delete_library_entry(cfg, entry["id"])
+
+        engine = get_engine(cfg)
+        with engine.connect() as conn:
+            row = conn.execute(
+                sa.select(steps.c.library_entry_id).where(steps.c.id == step_id)
+            ).scalar()
+        assert row is None
+
+
+def test_get_library_entries_summary(monkeypatch):
+    with _fresh_db(monkeypatch) as cfg:
+        from progi import db
+
+        db.create_library_entry(cfg, "Beta", "desc B", "# B")
+        db.create_library_entry(cfg, "Alpha", "desc A", "# A")
+
+        summary = db.get_library_entries_summary(cfg)
+        assert summary == [
+            {"name": "Alpha", "description": "desc A"},
+            {"name": "Beta", "description": "desc B"},
+        ]
+
+
 def test_web_app_builds(monkeypatch):
     with _fresh_db(monkeypatch):
         from progi.web.app import app

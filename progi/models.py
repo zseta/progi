@@ -41,6 +41,12 @@ steps = sa.Table(
     # When True, the agent must present the step output to the user and get
     # explicit approval before calling submit_output.
     sa.Column("requires_approval", sa.Boolean, nullable=False, server_default="0"),
+    sa.Column(
+        "library_entry_id",
+        sa.Integer,
+        sa.ForeignKey("library_entries.id", ondelete="SET NULL"),
+        nullable=True,
+    ),
 )
 
 step_edges = sa.Table(
@@ -83,6 +89,16 @@ playbooks = sa.Table(
         unique=True,
     ),
     sa.Column("content", sa.Text, nullable=False),
+)
+
+library_entries = sa.Table(
+    "library_entries",
+    metadata,
+    sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
+    sa.Column("name", sa.String(255), nullable=False, unique=True),
+    sa.Column("description", sa.Text),
+    sa.Column("playbook", sa.Text, nullable=False),
+    sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
 )
 
 tasks = sa.Table(

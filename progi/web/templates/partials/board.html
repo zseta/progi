@@ -27,6 +27,8 @@
             <td class="py-3 pl-1 pr-0">
               {% if task.status == "in_progress" %}
                 <span class="block size-2 rounded-full bg-accent mx-auto"></span>
+              {% elif task.status == "done" %}
+                <span class="block size-2 rounded-full bg-green-500 mx-auto"></span>
               {% else %}
                 <span class="block size-2 rounded-full bg-surface-3 border border-subtle mx-auto"></span>
               {% endif %}

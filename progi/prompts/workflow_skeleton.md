@@ -57,15 +57,14 @@ For a branching workflow, the edges express the routing logic:
   "name": "Content Review",
   "description": "Write and review before publishing, with an optional fast-track.",
   "process": [
-    {"order": 1, "name": "Draft",         "input_spec": {"description": "Topic.", "source": "static", "from_step": null},         "output_spec": {"type": "file", "description": "Draft + review_needed field", "constraints": "output must include review_needed boolean"}},
-    {"order": 2, "name": "Quick Publish", "input_spec": {"description": "Draft.", "source": "previous_step_output", "from_step": "Draft"},        "output_spec": {"type": "url",  "description": "Published URL", "constraints": "valid URL"}},
-    {"order": 3, "name": "Deep Edit",     "input_spec": {"description": "Draft.", "source": "previous_step_output", "from_step": "Draft"},        "output_spec": {"type": "file", "description": "Edited doc", "constraints": "markdown"}},
-    {"order": 4, "name": "Publish",       "input_spec": {"description": "Edited doc.", "source": "previous_step_output", "from_step": "Deep Edit"}, "output_spec": {"type": "url",  "description": "Published URL", "constraints": "valid URL"}}
+    {"order": 1, "name": "Draft",    "input_spec": {"description": "Topic.", "source": "static", "from_step": null},    "output_spec": {"type": "file", "description": "Draft", "constraints": "include review_needed boolean"}},
+    {"order": 2, "name": "Edit",     "input_spec": {"description": "Draft.", "source": "previous_step_output", "from_step": "Draft"}, "output_spec": {"type": "file", "description": "Edited doc", "constraints": "markdown"}},
+    {"order": 3, "name": "Publish",  "input_spec": {"description": "Doc to publish.", "source": "previous_step_output", "from_step": "Edit"}, "output_spec": {"type": "url", "description": "Published URL", "constraints": "valid URL"}}
   ],
   "edges": [
-    {"from": "Draft", "to": "Quick Publish", "condition": {"field": "review_needed", "operator": "eq", "value": false}, "priority": 0},
-    {"from": "Draft", "to": "Deep Edit",     "condition": {"field": "review_needed", "operator": "eq", "value": true},  "priority": 1},
-    {"from": "Deep Edit", "to": "Publish",   "condition": null, "priority": 0}
+    {"from": "Draft",  "to": "Edit",    "condition": {"field": "review_needed", "operator": "eq", "value": true},  "priority": 0},
+    {"from": "Draft",  "to": "Publish", "condition": {"field": "review_needed", "operator": "eq", "value": false}, "priority": 1},
+    {"from": "Edit",   "to": "Publish", "condition": null, "priority": 0}
   ]
 }
 ```
