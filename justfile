@@ -11,6 +11,7 @@ set dotenv-load
 
 tailwind_version := "v4.1.18"
 alpine_version := "3.15.4"
+alpine_focus_version := "3.15.4"
 alpine_ajax_version := "0.12.4"
 mermaid_version := "11.15.0"
 marked_version := "18.0.5"
@@ -55,6 +56,7 @@ install-python:
 # before Alpine core loads; base.html orders the <script> tags accordingly.
 vendorize:
     just _vendorize alpine {{alpine_version}} "https://unpkg.com/alpinejs@{{alpine_version}}/dist/cdn.min.js"
+    just _vendorize alpine-focus {{alpine_focus_version}} "https://unpkg.com/@alpinejs/focus@{{alpine_focus_version}}/dist/cdn.min.js"
     just _vendorize alpine-ajax {{alpine_ajax_version}} "https://unpkg.com/@imacrayon/alpine-ajax@{{alpine_ajax_version}}/dist/cdn.min.js"
     just _vendorize mermaid {{mermaid_version}} "https://cdn.jsdelivr.net/npm/mermaid@{{mermaid_version}}/dist/mermaid.min.js"
     just _vendorize marked {{marked_version}} "https://cdn.jsdelivr.net/npm/marked@{{marked_version}}/lib/marked.umd.js"
