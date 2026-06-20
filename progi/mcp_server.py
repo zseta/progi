@@ -7,8 +7,7 @@ here. Two tool families:
 - **Work loop**: create_task, list_tasks,
   start_or_continue_task, update_progress_notes, submit_output.
 - **Workflow authoring**: get_process_skeleton_prompt,
-  get_playbook_authoring_prompt, save_workflow, list_workflows,
-  update_playbook.
+  get_playbook_authoring_prompt, save_workflow, list_workflows.
 
 IMPORTANT (stdio hygiene): when running over stdio, stdout is the MCP protocol
 channel. Never `print()` to stdout. Use logging configured to stderr (see
@@ -234,11 +233,6 @@ def list_workflows() -> dict:
     """
     return {"workflows": db.list_workflows(_cfg), "monitoring_url": _monitoring_url("/workflows")}
 
-
-@mcp.tool(title="Update Playbook")
-def update_playbook(step_id: int, content: str) -> dict:
-    """Replace the playbook content for a step."""
-    return db.update_playbook(_cfg, step_id, content)
 
 
 def run(cfg: Config | None = None) -> None:

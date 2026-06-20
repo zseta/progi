@@ -64,7 +64,7 @@ Progi Monitoring gives you a live view of every running and completed task — s
 
 **4. Optimize as you go**
 
-Tweak playbooks between runs. Because workflows live in a database and survive context resets, every future task picks up your changes automatically — your process gets sharper with each iteration.
+Tweak playbooks in Progi Monitoring between runs. Because workflows live in a database and survive context resets, every future task picks up your changes automatically — your process gets sharper with each iteration.
 
 ---
 
@@ -88,7 +88,6 @@ Tweak playbooks between runs. Because workflows live in a database and survive c
 | `get_playbook_authoring_prompt` | Return the Pass 2 system prompt for authoring a step's playbook (injects workflow context) |
 | `save_workflow` | Persist a new workflow, its steps, and playbooks |
 | `list_workflows` | Return all workflows with their ordered steps |
-| `update_playbook` | Replace the playbook content for a step |
 
 Authoring is two passes: Pass 1 turns a plain-language description into a structured skeleton; Pass 2 authors each step's playbook. `save_workflow` persists both.
 

@@ -30,21 +30,15 @@ Before I save this, a few questions:
 
 Questions would be specific to your use case of course.
 
-Then, Progi saves the playbooks:
+Then, Progi saves the workflow:
 ```md
 Now let me save the skeleton first, then I'll get the playbook authoring prompts for each step.
 
 Progi [save_workflow]
 
-Progi [update_playbook]
-Progi [update_playbook]
-Progi [update_playbook]
-...
-Progi [update_playbook]
-
 ```
 
-Finally, Progi saves your complete workflow:
+Finally, Progi confirms your complete workflow:
 ```
 Done. The Agentic Fix-Up workflow is saved with 4 steps and full playbooks.
 

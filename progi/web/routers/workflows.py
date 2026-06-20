@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.templating import Jinja2Templates
@@ -75,6 +77,21 @@ def step_detail(workflow_id: int, step_id: int, request: Request):
         request,
         "partials/step_detail.html",
         data,
+    )
+
+
+@router.get("/workflows/{workflow_id}/export")
+def export_workflow(workflow_id: int, request: Request):
+    cfg = request.app.state.cfg
+    try:
+        data = db.export_workflow(cfg, workflow_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    filename = data["name"].replace(" ", "_") + ".json"
+    return Response(
+        content=json.dumps(data, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
