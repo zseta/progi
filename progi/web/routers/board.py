@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from ... import db
@@ -64,3 +64,13 @@ def task_detail(task_id: int, request: Request):
         "partials/task_detail.html",
         data,
     )
+
+
+@router.delete("/tasks/{task_id}")
+def delete_task(task_id: int, request: Request):
+    cfg = request.app.state.cfg
+    try:
+        db.delete_task(cfg, task_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return Response(status_code=204)
