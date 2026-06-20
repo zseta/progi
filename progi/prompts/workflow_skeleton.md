@@ -106,3 +106,7 @@ For a branching workflow, the edges express the routing logic:
 
 Do not write playbooks in this pass. Once the user approves the skeleton, it is
 saved and Pass 2 authors each step's playbook.
+
+**After approval, do not output the skeleton JSON to the user.** The JSON is an
+internal artifact for tool calls only. Acknowledge approval briefly and proceed
+to the next pass.
