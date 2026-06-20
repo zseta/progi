@@ -9,7 +9,7 @@
   {# Header #}
   <header class="flex items-center justify-between px-6 py-4 border-b border-subtle shrink-0">
     <div class="flex items-center gap-3 min-w-0">
-      <h2 class="text-sm font-semibold text-primary truncate" x-text="task.name"></h2>
+      <h2 id="task-detail-title" class="text-sm font-semibold text-primary truncate" x-text="task.name"></h2>
       {# Status badge #}
       <span
         class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
@@ -24,8 +24,11 @@
     <button
       type="button"
       @click="$dispatch('close-modal')"
+      aria-label="Close modal"
       class="size-7 flex items-center justify-center rounded-lg text-faint hover:text-primary hover:bg-surface-3 transition-colors shrink-0"
-    >✕</button>
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </header>
 
   {# Body — scrollable #}
