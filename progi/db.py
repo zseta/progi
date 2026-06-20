@@ -1100,7 +1100,7 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
     }
 
 
-def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None) -> list[dict[str, Any]]:
+def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None, status: str = "") -> list[dict[str, Any]]:
     """Return all tasks ordered by most recent activity for the board list view."""
     engine = get_engine(cfg)
     sd_alias = steps.alias("sd")
@@ -1149,6 +1149,9 @@ def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None) -> lis
 
     if workflow_id is not None:
         query = query.where(tasks.c.workflow_id == workflow_id)
+
+    if status:
+        query = query.where(tasks.c.status == status)
 
     with engine.connect() as conn:
         rows = conn.execute(query).mappings().all()

@@ -27,13 +27,13 @@ def index(request: Request):
 
 
 @router.get("/board", response_class=HTMLResponse)
-def board(request: Request, q: str = "", workflow_id: int | None = None):
+def board(request: Request, q: str = "", workflow_id: int | None = None, status: str = ""):
     """Return just the board partial (used to refresh after changes)."""
     cfg = request.app.state.cfg
     return _templates(request).TemplateResponse(
         request,
         "partials/board.html",
-        {"tasks": db.board_tasks(cfg, q=q, workflow_id=workflow_id)},
+        {"tasks": db.board_tasks(cfg, q=q, workflow_id=workflow_id, status=status)},
     )
 
 
