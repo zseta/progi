@@ -39,7 +39,7 @@
       @ajax:after.window="page = location.pathname"
       @popstate.window="page = location.pathname"
     >
-      <div class="mx-auto max-w-5xl px-6 flex items-center gap-6 h-11">
+      <div class="mx-auto max-w-7xl px-8 flex items-center gap-8 h-12">
         <span class="text-xs font-semibold tracking-widest uppercase text-primary mr-2">progi</span>
         <a href="/"
            x-target.push="page-content"
@@ -65,7 +65,7 @@
       </div>
     </nav>
 
-    <div id="page-content" class="relative z-10 {% block outer_class %}mx-auto max-w-5xl px-6 py-12{% endblock %}">
+    <div id="page-content" class="relative z-10 {% block outer_class %}mx-auto max-w-7xl px-8 py-12{% endblock %}">
       {% block content %}{% endblock %}
     </div>
     {% block scripts %}{% endblock %}

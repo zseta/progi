@@ -28,9 +28,9 @@
   --font-sans: "Inter", "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, "Cascadia Code", monospace;
 
-  /* Bump the two most-used sizes up one step so the UI doesn't read tiny. */
-  --text-xs: 0.8125rem;   /* 13px instead of 12px */
-  --text-sm: 0.9375rem;   /* 15px instead of 14px */
+  /* Bump font sizes so the UI doesn't read tiny. */
+  --text-xs: 0.875rem;    /* 14px instead of 12px */
+  --text-sm: 1rem;        /* 16px instead of 14px */
 }
 
 /* ── Semantic utility classes ───────────────────────────────────────────────
