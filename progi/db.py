@@ -1087,7 +1087,7 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
 
 
 def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None) -> list[dict[str, Any]]:
-    """Return active (non-done) tasks ordered by most recent activity for the board list view."""
+    """Return all tasks ordered by most recent activity for the board list view."""
     engine = get_engine(cfg)
     sd_alias = steps.alias("sd")
 
@@ -1118,7 +1118,6 @@ def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None) -> lis
             .outerjoin(sd_alias, sd_alias.c.id == tasks.c.current_step_id)
             .outerjoin(latest_activity, latest_activity.c.task_id == tasks.c.id)
         )
-        .where(tasks.c.status != "done")
         .order_by(
             sa.func.coalesce(latest_activity.c.last_active, tasks.c.created_at).desc()
         )
