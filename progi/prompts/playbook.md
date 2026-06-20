@@ -21,8 +21,7 @@ Write a markdown document that includes:
    the deliverable.
 4. **Human-involvement points** — there is no separate "human step": every step
    is run by the agent, and the playbook decides when to pull the human in. Be
-   explicit, e.g. "ask the user to confirm tone before drafting", or "present the
-   draft and iterate until the user approves". The `requires_approval` flag on
+   explicit, e.g. "ask the user to confirm tone before drafting". The `requires_approval` flag on
    this step (shown in the context above) controls whether the agent must present
    the final output to the user and receive explicit sign-off before calling
    `submit_output`. If it is true, the playbook should describe what to show the
@@ -32,9 +31,8 @@ Write a markdown document that includes:
    `submit_output`, which advances the task to the next step.
 
 ## Style
-
 - Address the agent in the second person ("You are working on…").
-- Be specific and actionable; avoid vague encouragement.
+- Be specific and actionable; no fluff.
 - Keep it to a single markdown document — no separate files.
 
 Return only the playbook markdown for **this** step.
