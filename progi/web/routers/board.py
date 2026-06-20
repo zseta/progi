@@ -19,6 +19,7 @@ def index(request: Request):
     cfg = request.app.state.cfg
     ctx = {
         "tasks": db.board_tasks(cfg),
+        "workflows": [{"id": wf["id"], "name": wf["name"]} for wf in db.list_workflows(cfg)],
         "active_page": "board",
         "base_template": base_template(request),
     }
@@ -26,13 +27,13 @@ def index(request: Request):
 
 
 @router.get("/board", response_class=HTMLResponse)
-def board(request: Request):
+def board(request: Request, q: str = "", workflow_id: int | None = None):
     """Return just the board partial (used to refresh after changes)."""
     cfg = request.app.state.cfg
     return _templates(request).TemplateResponse(
         request,
         "partials/board.html",
-        {"tasks": db.board_tasks(cfg)},
+        {"tasks": db.board_tasks(cfg, q=q, workflow_id=workflow_id)},
     )
 
 
@@ -52,6 +53,7 @@ def task_detail(task_id: int, request: Request):
             "pages/board.html",
             {
                 "tasks": db.board_tasks(cfg),
+                "workflows": [{"id": wf["id"], "name": wf["name"]} for wf in db.list_workflows(cfg)],
                 "active_page": "board",
                 "base_template": base_template(request),
             },

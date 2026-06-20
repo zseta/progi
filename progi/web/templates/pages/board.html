@@ -3,11 +3,40 @@
 {% block content %}
 {# ── Kanban board ─────────────────────────────────────────────────────────── #}
 <div x-cloak x-data="boardView()" x-init="init()">
-<section x-data="{ refreshed: false }">
-  <div class="flex justify-end mb-3">
+<section x-data="{ refreshed: false, search: '', workflowId: '', _timer: null, triggerRefresh() { clearTimeout(this._timer); this._timer = setTimeout(() => { const params = new URLSearchParams(); if (this.search) params.set('q', this.search); if (this.workflowId) params.set('workflow_id', this.workflowId); $ajax('/board?' + params.toString(), { target: 'board' }); }, 220) } }">
+  <div class="flex items-center gap-2 mb-3">
+    <input
+      type="search"
+      placeholder="Search tasks…"
+      x-model="search"
+      @input="triggerRefresh()"
+      class="flex-1 px-3 py-1.5 rounded-lg text-xs text-primary placeholder:text-ghost
+        bg-surface-2 border border-subtle focus:border-subtle-hover focus:outline-none
+        transition-colors duration-150"
+    />
+    <div class="relative">
+      <select
+        x-model="workflowId"
+        @change="triggerRefresh()"
+        class="appearance-none py-1.5 pl-2.5 pr-7 rounded-lg text-xs text-secondary
+          bg-surface-2 border border-subtle hover:border-subtle-hover
+          focus:border-subtle-hover focus:outline-none
+          transition-colors duration-150 cursor-pointer"
+      >
+        <option value="">All workflows</option>
+        {% for wf in workflows %}
+        <option value="{{ wf.id }}">{{ wf.name }}</option>
+        {% endfor %}
+      </select>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"
+        class="absolute right-1.5 top-1/2 -translate-y-1/2 size-3.5 text-muted pointer-events-none">
+        <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+      </svg>
+    </div>
     <a
       href="/board"
       x-target="board"
+      @ajax:before="search = ''; workflowId = ''"
       @ajax:success="refreshed = true; setTimeout(() => refreshed = false, 1500)"
       class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5
         text-xs font-medium text-faint hover:text-primary
