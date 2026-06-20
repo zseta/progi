@@ -1,0 +1,164 @@
+<script type="application/json" id="library-entry-detail-data">{{ {"entry": entry, "usedBy": used_by} | tojson }}</script>
+<div
+  id="library-entry-detail"
+  x-data="libraryEntryDetail()"
+  x-init="init()"
+  class="flex flex-col min-h-0 flex-1"
+>
+
+  {# Header #}
+  <header class="flex items-center justify-between px-6 py-4 border-b border-subtle shrink-0">
+    <h2 class="text-sm font-semibold text-primary truncate" x-text="entry.name"></h2>
+    <button
+      type="button"
+      @click="$dispatch('close-modal')"
+      class="size-7 flex items-center justify-center rounded-lg text-faint hover:text-primary hover:bg-surface-3 transition-colors shrink-0"
+    >✕</button>
+  </header>
+
+  {# Body — scrollable #}
+  <div class="overflow-y-auto flex-1 px-6 py-5 flex flex-col gap-6">
+
+    {# Name #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Name</p>
+      <div x-show="!editing.name" class="relative group">
+        <p class="text-xs text-secondary bg-surface-1 rounded-lg px-3 py-2" x-text="entry.name"></p>
+        <button
+          @click="startEdit('name', entry.name)"
+          class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity size-6 flex items-center justify-center rounded text-faint hover:text-primary hover:bg-surface-3"
+          title="Edit"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </div>
+      <div x-show="editing.name" class="flex flex-col gap-2">
+        <input
+          type="text"
+          x-model="drafts.name"
+          class="text-xs text-primary bg-surface-1 rounded-lg px-3 py-2 w-full border border-subtle focus:outline-none focus:border-accent"
+        />
+        <p x-show="errors.name" x-text="errors.name" class="text-xs text-red-400"></p>
+        <div class="flex gap-2">
+          <button @click="saveEdit('name')" class="size-6 flex items-center justify-center rounded text-green-400 hover:bg-surface-3" title="Save">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button @click="cancelEdit('name')" class="size-6 flex items-center justify-center rounded text-red-400 hover:bg-surface-3" title="Discard">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    {# Description #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Description</p>
+      <div x-show="!editing.description" class="relative group">
+        <template x-if="entry.description">
+          <p class="text-xs text-secondary bg-surface-1 rounded-lg px-3 py-2" x-text="entry.description"></p>
+        </template>
+        <template x-if="!entry.description">
+          <p class="text-xs text-ghost italic">No description.</p>
+        </template>
+        <button
+          @click="startEdit('description', entry.description || '')"
+          class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity size-6 flex items-center justify-center rounded text-faint hover:text-primary hover:bg-surface-3"
+          title="Edit"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </div>
+      <div x-show="editing.description" class="flex flex-col gap-2">
+        <textarea
+          x-model="drafts.description"
+          rows="3"
+          class="text-xs text-secondary bg-surface-1 rounded-lg px-3 py-2 w-full border border-subtle focus:outline-none focus:border-accent resize-y"
+          placeholder="Optional description…"
+        ></textarea>
+        <div class="flex gap-2">
+          <button @click="saveEdit('description')" class="size-6 flex items-center justify-center rounded text-green-400 hover:bg-surface-3" title="Save">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button @click="cancelEdit('description')" class="size-6 flex items-center justify-center rounded text-red-400 hover:bg-surface-3" title="Discard">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    {# Playbook #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Playbook</p>
+      <div x-show="!editing.playbook" class="relative group">
+        <template x-if="entry.playbook">
+          <div
+            class="prose prose-sm prose-invert max-w-none text-xs bg-surface-1 rounded-lg p-3"
+            x-html="renderMarkdown(entry.playbook)"
+          ></div>
+        </template>
+        <template x-if="!entry.playbook">
+          <p class="text-xs text-ghost italic">No playbook defined.</p>
+        </template>
+        <button
+          @click="startEdit('playbook', entry.playbook || '')"
+          class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity size-6 flex items-center justify-center rounded text-faint hover:text-primary hover:bg-surface-3"
+          title="Edit"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </div>
+      <div x-show="editing.playbook" class="flex flex-col gap-2">
+        <textarea
+          x-model="drafts.playbook"
+          rows="12"
+          class="text-xs text-secondary bg-surface-1 rounded-lg p-3 w-full font-mono resize-y border border-subtle focus:outline-none focus:border-accent"
+          placeholder="Write markdown here…"
+        ></textarea>
+        <div class="flex gap-2">
+          <button @click="saveEdit('playbook')" class="size-6 flex items-center justify-center rounded text-green-400 hover:bg-surface-3" title="Save">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </button>
+          <button @click="cancelEdit('playbook')" class="size-6 flex items-center justify-center rounded text-red-400 hover:bg-surface-3" title="Discard">
+            <svg xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    {# Used by #}
+    <section>
+      <p class="text-xs font-semibold uppercase tracking-widest text-faint mb-2">Used by</p>
+      <template x-if="usedBy.length === 0">
+        <p class="text-xs text-ghost italic">Not used in any workflow yet.</p>
+      </template>
+      <template x-if="usedBy.length > 0">
+        <div class="flex flex-col gap-1.5">
+          <template x-for="u in usedBy" :key="u.step_id">
+            <a
+              :href="`/workflows/${u.workflow_id}/steps/${u.step_id}`"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="group flex items-center gap-3 rounded-lg border border-subtle bg-surface-1 px-3 py-2.5 hover:border-subtle-hover hover:bg-surface-2 transition-colors"
+            >
+              {# Workflow name #}
+              <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span class="text-xs font-medium text-secondary truncate" x-text="u.workflow_name"></span>
+                <div class="flex items-center gap-1.5">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="size-2.5 shrink-0 text-ghost" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  <span class="text-xs text-muted truncate" x-text="u.step_name"></span>
+                </div>
+              </div>
+              {# External link icon #}
+              <svg xmlns="http://www.w3.org/2000/svg" class="size-3 shrink-0 text-ghost group-hover:text-faint transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/>
+                <line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+            </a>
+          </template>
+        </div>
+      </template>
+    </section>
+
+  </div>
+</div>

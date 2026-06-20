@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from ..config import load_config
-from .routers import board, workflows
+from .routers import board, library, workflows
 
 _HERE = Path(__file__).parent
 
@@ -42,6 +42,7 @@ app.state.templates.env.filters["timeago"] = _timeago
 
 app.include_router(board.router)
 app.include_router(workflows.router)
+app.include_router(library.router)
 
 
 def main() -> None:
