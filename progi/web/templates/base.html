@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{% block title %}progi{% endblock %}</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23000'/><text x='50%25' y='54%25' dominant-baseline='middle' text-anchor='middle' font-family='Inter,ui-sans-serif,sans-serif' font-size='20' font-weight='700' fill='%23fafafa'>P</text></svg>" />
+    <link rel="icon" href="/static/images/progi-p-icon.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -41,7 +41,7 @@
       @popstate.window="page = location.pathname"
     >
       <div class="mx-auto max-w-7xl px-8 flex items-center gap-8 h-12">
-        <span class="text-xs font-semibold tracking-widest uppercase text-primary mr-2">progi</span>
+        <img src="/static/images/progi-logo-small.png" alt="progi" class="h-6 mr-2" />
         <a href="/"
            x-target.push="page-content"
            :class="{ 'text-primary': page === '/', 'text-faint hover:text-muted': page !== '/' }"
