@@ -182,6 +182,14 @@ function workflowEditor() {
       this.cancelRename();
     },
 
+    async copyWorkflow(id) {
+      const resp = await fetch(`/workflows/${id}/export`);
+      if (!resp.ok) return;
+      const text = await resp.text();
+      await navigator.clipboard.writeText(text);
+      this.openMenuId = null;
+    },
+
     async deleteWorkflow(id) {
       if (!confirm('Are you sure you want to delete this workflow? All tasks associated with it will also be permanently deleted. This cannot be undone.')) return;
       const resp = await fetch(`/workflows/${id}`, { method: 'DELETE' });
