@@ -1086,13 +1086,56 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
     }
 
 
-def board_tasks(cfg: Config) -> dict[str, list[dict[str, Any]]]:
-    """Group tasks by status for the read-only kanban board."""
-    grouped: dict[str, list[dict[str, Any]]] = {
-        "todo": [],
-        "in_progress": [],
-        "done": [],
-    }
-    for t in list_tasks(cfg):
-        grouped.setdefault(t["status"], []).append(t)
-    return grouped
+def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None) -> list[dict[str, Any]]:
+    """Return all tasks ordered by most recent activity for the board list view."""
+    engine = get_engine(cfg)
+    sd_alias = steps.alias("sd")
+
+    si_alias = step_instances.alias("si_latest")
+    latest_activity = (
+        sa.select(
+            si_alias.c.task_id,
+            sa.func.max(si_alias.c.completed_at).label("last_active"),
+        )
+        .group_by(si_alias.c.task_id)
+        .subquery()
+    )
+
+    query = (
+        sa.select(
+            tasks.c.id,
+            tasks.c.name,
+            workflows.c.name.label("workflow_name"),
+            tasks.c.status,
+            tasks.c.current_step_id,
+            tasks.c.progress_notes,
+            sd_alias.c.name.label("current_step_name"),
+            tasks.c.created_at,
+            latest_activity.c.last_active,
+        )
+        .select_from(
+            tasks.join(workflows, workflows.c.id == tasks.c.workflow_id)
+            .outerjoin(sd_alias, sd_alias.c.id == tasks.c.current_step_id)
+            .outerjoin(latest_activity, latest_activity.c.task_id == tasks.c.id)
+        )
+        .order_by(
+            sa.func.coalesce(latest_activity.c.last_active, tasks.c.created_at).desc()
+        )
+    )
+
+    if q:
+        pattern = f"%{q}%"
+        query = query.where(
+            sa.or_(
+                tasks.c.name.ilike(pattern),
+                workflows.c.name.ilike(pattern),
+                sd_alias.c.name.ilike(pattern),
+            )
+        )
+
+    if workflow_id is not None:
+        query = query.where(tasks.c.workflow_id == workflow_id)
+
+    with engine.connect() as conn:
+        rows = conn.execute(query).mappings().all()
+    return [dict(r) for r in rows]
