@@ -935,6 +935,39 @@ def get_workflow_with_playbooks(cfg: Config, workflow_id: int) -> dict[str, Any]
     }
 
 
+def export_workflow(cfg: Config, workflow_id: int) -> dict[str, Any]:
+    """Return a workflow in the save_workflow-compatible export format."""
+    wf = get_workflow_with_playbooks(cfg, workflow_id)
+    step_by_id = {s["id"]: s for s in wf["steps"]}
+    return {
+        "name": wf["name"],
+        "description": wf["description"],
+        "process": [
+            {
+                "order": s["order"],
+                "name": s["name"],
+                "input_spec": s["input_spec"],
+                "output_spec": s["output_spec"],
+            }
+            for s in wf["steps"]
+        ],
+        "edges": [
+            {
+                "from": step_by_id[e["from_step_id"]]["name"],
+                "to": step_by_id[e["to_step_id"]]["name"],
+                "condition": e["condition"],
+                "priority": e["priority"],
+            }
+            for e in wf["edges"]
+        ],
+        "playbooks": {
+            s["name"]: s["playbook"]
+            for s in wf["steps"]
+            if s["playbook"] is not None
+        },
+    }
+
+
 def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, Any]:
     """Return a single step with its playbook, and derived prev/next steps."""
     engine = get_engine(cfg)

@@ -106,6 +106,11 @@
               @click.stop="startRename(wf)"
               class="w-full text-left px-3 py-1.5 text-xs text-muted hover:bg-surface-1 hover:text-primary transition-colors"
             >Rename</button>
+            <a
+              :href="`/workflows/${wf.id}/export`"
+              @click.stop="openMenuId = null"
+              class="block w-full text-left px-3 py-1.5 text-xs text-muted hover:bg-surface-1 hover:text-primary transition-colors"
+            >Export JSON</a>
             <button
               type="button"
               @click.stop="deleteWorkflow(wf.id)"
