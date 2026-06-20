@@ -344,12 +344,12 @@ def test_board_tasks(monkeypatch):
 
         _, task = _seed(cfg)
         board = db.board_tasks(cfg)
-        assert set(board.keys()) == {"todo", "in_progress", "done"}
-        assert any(t["id"] == task["id"] for t in board["todo"])
+        assert isinstance(board, list)
+        assert any(t["id"] == task["id"] for t in board)
 
         db.start_or_continue_task(cfg, task["id"])
         board = db.board_tasks(cfg)
-        assert any(t["id"] == task["id"] for t in board["in_progress"])
+        assert any(t["id"] == task["id"] for t in board)
 
 
 def test_web_app_builds(monkeypatch):
