@@ -8,11 +8,20 @@ function boardView() {
       if (match) {
         this.openTask(parseInt(match[1]));
       }
+      window.addEventListener('refresh-board', () => this.refreshBoard());
     },
 
     closeModal() {
       this.modalOpen = false;
       history.replaceState(null, '', '/');
+    },
+
+    async refreshBoard() {
+      const board = document.getElementById('board');
+      if (!board) return;
+      const resp = await fetch('/board', { headers: { 'X-Alpine-Request': '1' } });
+      const html = await resp.text();
+      board.outerHTML = html;
     },
 
     async openTask(taskId) {
@@ -39,6 +48,15 @@ function taskDetail() {
       const data = JSON.parse(document.getElementById('task-detail-data').textContent);
       this.task = data.task;
       this.stepInstances = data.stepInstances;
+    },
+
+    async deleteTask(taskId) {
+      if (!confirm('Delete this task permanently? This cannot be undone.')) return;
+      const resp = await fetch(`/tasks/${taskId}`, { method: 'DELETE' });
+      if (resp.ok) {
+        this.$dispatch('close-modal');
+        this.$dispatch('refresh-board');
+      }
     },
   };
 }

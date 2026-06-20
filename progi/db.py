@@ -543,6 +543,17 @@ def create_task(cfg: Config, name: str, workflow_id: int, description: str = "")
     return result
 
 
+def delete_task(cfg: Config, task_id: int) -> None:
+    """Permanently delete a task and all its step instances."""
+    engine = get_engine(cfg)
+    with engine.begin() as conn:
+        row = conn.execute(sa.select(tasks.c.id).where(tasks.c.id == task_id)).first()
+        if row is None:
+            raise ValueError(f"Task {task_id} not found.")
+        conn.execute(sa.delete(step_instances).where(step_instances.c.task_id == task_id))
+        conn.execute(sa.delete(tasks).where(tasks.c.id == task_id))
+
+
 def _start_step_from_rows(step_rows: list[dict[str, Any]]) -> dict[str, Any]:
     """Return the first step (by order) from an already-fetched list."""
     return min(step_rows, key=lambda s: s["order"])
