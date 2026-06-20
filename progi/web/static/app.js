@@ -203,9 +203,25 @@ function workflowEditor() {
     },
 
     resetZoom() {
-      this.zoom = 1;
-      this.panX = 0;
-      this.panY = 0;
+      const container = document.getElementById('mermaid-container');
+      const svgEl = container && container.querySelector('svg');
+      if (svgEl) {
+        const diagramW = parseFloat(svgEl.style.width)  || svgEl.getBoundingClientRect().width;
+        const diagramH = parseFloat(svgEl.style.height) || svgEl.getBoundingClientRect().height;
+        const padding = 48;
+        const scale = Math.min(
+          (container.clientWidth  - padding) / diagramW,
+          (container.clientHeight - padding) / diagramH,
+          1
+        );
+        this.zoom = scale;
+        this.panX = (container.clientWidth  - diagramW * scale) / 2;
+        this.panY = (container.clientHeight - diagramH * scale) / 2;
+      } else {
+        this.zoom = 1;
+        this.panX = 0;
+        this.panY = 0;
+      }
       this._applyTransform();
     },
 
@@ -284,8 +300,8 @@ function workflowEditor() {
       const stepById = {};
       steps.forEach(s => { stepById[s.id] = s; });
 
-      // Build Mermaid flowchart definition (left-to-right)
-      let def = 'flowchart LR\n';
+      // Build Mermaid flowchart definition (top-to-bottom)
+      let def = 'flowchart TB\n';
 
       // Add nodes — sanitize names for Mermaid IDs
       steps.forEach(s => {
@@ -318,13 +334,36 @@ function workflowEditor() {
       const { svg } = await mermaid.render('mermaid-graph', def);
       container.innerHTML = svg;
 
-      // Make SVG fill the container: remove fixed width/height, use 100%
+      // Fit SVG to container at natural size, centered
       const svgEl = container.querySelector('svg');
       if (!svgEl) return;
+
+      // Read the natural diagram dimensions from the viewBox
+      const vb = svgEl.viewBox.baseVal;
+      const diagramW = vb.width  || svgEl.getBoundingClientRect().width;
+      const diagramH = vb.height || svgEl.getBoundingClientRect().height;
+
+      // Leave the SVG at its natural size so transform-origin: 0 0 works cleanly
       svgEl.removeAttribute('width');
       svgEl.removeAttribute('height');
-      svgEl.style.width  = '100%';
-      svgEl.style.height = '100%';
+      svgEl.style.width  = diagramW + 'px';
+      svgEl.style.height = diagramH + 'px';
+
+      // Scale to fit the container with some padding
+      const containerW = container.clientWidth;
+      const containerH = container.clientHeight;
+      const padding = 48;
+      const scale = Math.min(
+        (containerW - padding) / diagramW,
+        (containerH - padding) / diagramH,
+        1  // never scale up beyond natural size
+      );
+
+      // Center the scaled diagram
+      this.zoom = scale;
+      this.panX = (containerW - diagramW * scale) / 2;
+      this.panY = (containerH - diagramH * scale) / 2;
+      this._applyTransform();
 
       steps.forEach(s => {
         // Mermaid 11 generates g elements with id "flowchart-step_{id}-{n}" OR
