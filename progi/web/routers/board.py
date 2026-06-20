@@ -18,7 +18,7 @@ def _templates(request: Request) -> Jinja2Templates:
 def index(request: Request):
     cfg = request.app.state.cfg
     ctx = {
-        "board": db.board_tasks(cfg),
+        "tasks": db.board_tasks(cfg),
         "active_page": "board",
         "base_template": base_template(request),
     }
@@ -32,7 +32,7 @@ def board(request: Request):
     return _templates(request).TemplateResponse(
         request,
         "partials/board.html",
-        {"board": db.board_tasks(cfg)},
+        {"tasks": db.board_tasks(cfg)},
     )
 
 
@@ -51,7 +51,7 @@ def task_detail(task_id: int, request: Request):
             request,
             "pages/board.html",
             {
-                "board": db.board_tasks(cfg),
+                "tasks": db.board_tasks(cfg),
                 "active_page": "board",
                 "base_template": base_template(request),
             },
