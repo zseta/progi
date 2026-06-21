@@ -39,7 +39,7 @@ steps = sa.Table(
     sa.Column("input_spec", sa.JSON, nullable=False),
     sa.Column("output_spec", sa.JSON, nullable=False),
     # When True, the agent must present the step output to the user and get
-    # explicit approval before calling submit_output.
+    # explicit approval before calling finish_step.
     sa.Column("requires_approval", sa.Boolean, nullable=False, server_default="0"),
     sa.Column(
         "library_entry_id",

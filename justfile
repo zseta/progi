@@ -5,7 +5,7 @@ set dotenv-load
 # Quickstart:
 #   just install     # python deps + vendored JS + tailwind CLI
 #   just build       # compile CSS
-#   just dev         # run web app with reload
+#   just dev         # run MCP server over SSE
 #
 # Versions are pinned; bump them here.
 
@@ -20,25 +20,17 @@ marked_version := "18.0.5"
 # Dev
 # ---------------------------------------------------------------------------
 
-# Run the web app with autoreload + CSS watch (web only; MCP not involved here).
-dev:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    cd frontend && ./tailwindcss -i input.css -o ../progi/web/static/style.css --watch &
-    trap "kill 0" EXIT
-    uv run python -m uvicorn progi.web.app:app --reload
-
 # Run the web app with autoreload only (no CSS watch).
 uvicorn:
     uv run python -m uvicorn progi.web.app:app --reload
 
-# Watch and rebuild CSS while developing (run alongside `just dev`).
+# Watch and rebuild CSS while developing (run alongside `just uvicorn`).
 watch-css:
     cd frontend && ./tailwindcss -i input.css -o ../progi/web/static/style.css --watch
 
-# Run the MCP server (stdio) only
-mcp:
-    uv run progi --no-web
+# Run the MCP server over SSE (shared, persistent; clients connect via URL instead of spawning a process)
+dev host="127.0.0.1" port="8001":
+    uv run progi --transport sse --mcp-host {{host}} --mcp-port {{port}}
 
 # ---------------------------------------------------------------------------
 # Install
@@ -120,10 +112,6 @@ migrate message:
 # Apply migrations.
 upgrade:
     uv run alembic upgrade head
-
-# Load the "Blog Post" workflow + a sample task (idempotent).
-seed:
-    uv run python -m progi.seed
 
 # ---------------------------------------------------------------------------
 # Quality
