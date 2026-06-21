@@ -561,6 +561,16 @@ function libraryView() {
         if (this.modalOpen) this.closeModal();
       }
     },
+
+    async copyPlaybook(entry) {
+      const text = entry.playbook || '';
+      await navigator.clipboard.writeText(text);
+      entry._copied = true;
+      this.entries = this.entries.map(e => e.id === entry.id ? { ...e, _copied: true } : e);
+      setTimeout(() => {
+        this.entries = this.entries.map(e => e.id === entry.id ? { ...e, _copied: false } : e);
+      }, 1500);
+    },
   };
 }
 
@@ -610,6 +620,10 @@ function libraryEntryDetail() {
 
     renderMarkdown(content) {
       return marked.parse(content || '');
+    },
+
+    deleteEntry(entryId) {
+      this.$dispatch('delete-library-entry', { id: entryId });
     },
   };
 }
