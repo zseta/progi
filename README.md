@@ -78,7 +78,7 @@ Tweak playbooks in Progi Monitoring between runs. Because workflows live in a da
 | `list_tasks` | List tasks, optionally filtered by status and/or workflow |
 | `start_or_continue_task` | Main work-loop entry point — starts or resumes a task and returns the current step's playbook, input data, and output spec |
 | `update_progress_notes` | Overwrite a task's progress notes (mid-step save point) |
-| `submit_output` | Mark the current step complete, store its output, and advance to the next step (or mark done) |
+| `finish_step` | Mark the current step complete, store its output, and advance to the next step (or mark done) |
 
 ### Workflow authoring
 

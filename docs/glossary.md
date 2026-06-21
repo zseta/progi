@@ -16,7 +16,7 @@ Terms used across the progi codebase, README, and documentation.
 
 **edge** — A directed connection between two steps. Defines execution flow. Can be conditional (evaluated against the step's `output`) or unconditional. Supports branching. Stored in the `step_edges` table.
 
-**agent** — The AI assistant running inside the user's MCP harness (Claude Code, Cursor, etc.). Reads the playbook, performs the work, and calls `submit_output` to advance the task.
+**agent** — The AI assistant running inside the user's MCP harness (Claude Code, Cursor, etc.). Reads the playbook, performs the work, and calls `finish_step` to advance the task.
 
 ---
 
@@ -44,7 +44,7 @@ Terms used across the progi codebase, README, and documentation.
 
 **input_data** — The resolved, concrete data passed to a step instance when it activates. Derived from `input_spec`; may pull from a prior step's `output`. Stored as JSON on `step_instances.input_data`.
 
-**output** — The actual deliverable submitted by the agent via `submit_output`. Stored as JSON on `step_instances.output`. Used to resolve the next step's `input_data` and to evaluate edge `conditions`.
+**output** — The actual deliverable submitted by the agent via `finish_step`. Stored as JSON on `step_instances.output`. Used to resolve the next step's `input_data` and to evaluate edge `conditions`.
 
 **source** — Field inside `input_spec`. Either `"static"` (data comes from task creation) or `"previous_step_output"` (data comes from a prior step's `output`).
 
@@ -68,7 +68,7 @@ Terms used across the progi codebase, README, and documentation.
 
 ## Work loop
 
-**work loop** — The main runtime cycle: `start_or_continue_task` → agent reads playbook and `input_data` → agent works → `submit_output` → next step activates (or task is done). Runs entirely inside the MCP harness.
+**work loop** — The main runtime cycle: `start_or_continue_task` → agent reads playbook and `input_data` → agent works → `finish_step` → next step activates (or task is done). Runs entirely inside the MCP harness.
 
 **lazy creation** — Step instances are created only when a step is activated, not upfront. Avoids instantiating branches that are never taken.
 

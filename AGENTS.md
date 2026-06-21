@@ -159,10 +159,8 @@ if (resp.ok) {
 uv sync --extra dev                  # deps + just
 uv run just install                  # + vendored JS, Tailwind CLI
 uv run just build                    # compile web/static/style.css
-uv run just dev                      # web app with autoreload
-uv run just mcp                      # MCP server only (stdio)
+uv run just dev                      # MCP server over SSE (connect via http://127.0.0.1:8001/sse)
 uv run just migrate "msg" && uv run just upgrade   # Alembic migration
-uv run just seed                     # load Blog Post workflow + sample task
 uv run python -m pytest              # tests (do NOT use `uv run pytest` — a system pytest may shadow it)
 uv run ruff check progi              # lint
 ```

@@ -191,16 +191,18 @@ def _start_step(conn, workflow_id: int) -> dict[str, Any]:
     return dict(row)
 
 
-def _evaluate_condition(condition: dict | None, output: dict) -> bool:
+def _evaluate_condition(condition: dict | None, output: dict | str) -> bool:
     """Return True if the edge condition matches the step output.
 
     A null condition always matches (unconditional / default edge).
     Supported operators: eq, neq, in, not_in.
+    Plain-text (str) outputs are treated as {"value": output} for condition matching.
     """
     if condition is None:
         return True
     field = condition["field"]
-    value = output.get(field)
+    output_dict = {"value": output} if isinstance(output, str) else output
+    value = output_dict.get(field)
     op = condition["operator"]
     if op == "eq":
         return value == condition["value"]
@@ -211,6 +213,7 @@ def _evaluate_condition(condition: dict | None, output: dict) -> bool:
     elif op == "not_in":
         return value not in condition["value"]
     return False
+
 
 
 def _resolve_next_step(conn, current_step_id: int, output: dict) -> dict[str, Any] | None:
@@ -242,9 +245,10 @@ def _resolve_next_step(conn, current_step_id: int, output: dict) -> dict[str, An
             )
             return dict(row)
 
+    output_desc = list(output.keys()) if isinstance(output, dict) else repr(output[:80])
     raise ValueError(
         f"No outgoing edge condition matched for step {current_step_id}. "
-        f"Output fields: {list(output.keys())}. "
+        f"Output fields: {output_desc}. "
         f"Check that the output includes the field referenced by at least one edge condition, "
         f"or add an unconditional (null condition) fallback edge."
     )
@@ -267,7 +271,7 @@ def save_workflow(
         {
             "name": str,
             "description": str,
-            "process": [
+            "steps": [
                 {"order": int, "name": str, "input_spec": {...}, "output_spec": {...}}
             ],
             "edges": [                          # optional; auto-generated if absent
@@ -290,7 +294,8 @@ def save_workflow(
         ).inserted_primary_key[0]
 
         step_rows: list[dict[str, Any]] = []
-        for step in sorted(skeleton_json["process"], key=lambda s: s["order"]):
+        _steps_list = skeleton_json.get("process") or skeleton_json.get("steps") or []
+        for step in sorted(_steps_list, key=lambda s: s["order"]):
             step_id = conn.execute(
                 sa.insert(steps).values(
                     workflow_id=wf_id,
@@ -726,7 +731,7 @@ def update_progress_notes(cfg: Config, task_id: int, notes: str) -> dict[str, An
 
 
 def submit_output(
-    cfg: Config, task_id: int, output: dict[str, Any], task_name: str | None = None
+    cfg: Config, task_id: int, output: dict[str, Any] | str, task_name: str | None = None
 ) -> dict[str, Any]:
     """Complete the current step, evaluate edge conditions, then advance or finish.
 
@@ -822,7 +827,7 @@ def submit_output(
                 source_output = output
 
             next_input_data = {
-                "value": source_output.get("value", source_output),
+                "value": source_output if isinstance(source_output, str) else source_output.get("value", source_output),
                 "from_step": from_step_name or current_step["name"],
             }
         else:
@@ -942,7 +947,7 @@ def export_workflow(cfg: Config, workflow_id: int) -> dict[str, Any]:
     return {
         "name": wf["name"],
         "description": wf["description"],
-        "process": [
+        "steps": [
             {
                 "order": s["order"],
                 "name": s["name"],

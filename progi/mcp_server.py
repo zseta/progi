@@ -5,7 +5,7 @@ is a thin wrapper that delegates to `progi.db` — no business logic or SQL live
 here. Two tool families:
 
 - **Work loop**: create_task, list_tasks,
-  start_or_continue_task, update_progress_notes, submit_output.
+  start_or_continue_task, update_progress_notes, finish_step.
 - **Workflow authoring**: get_process_skeleton_prompt,
   get_playbook_authoring_prompt, save_workflow, list_workflows.
 
@@ -40,7 +40,6 @@ def _monitoring_url(path: str = "") -> str:
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 _WORKFLOW_SKELETON_MD = _PROMPTS_DIR / "workflow_skeleton.md"
-_PLAYBOOK_MD = _PROMPTS_DIR / "playbook.md"
 
 
 # ---------------------------------------------------------------------------
@@ -89,7 +88,7 @@ def start_or_continue_task(task_id: int) -> dict:
     output_spec (the expected format/type of the deliverable), the playbook
     markdown, and progress_notes (if any).
 
-    Before calling submit_output, verify that your output satisfies output_spec
+    Before calling finish_step, verify that your output satisfies output_spec
     (correct type, meets constraints, includes any fields referenced by branching
     conditions).
 
@@ -110,8 +109,8 @@ def update_progress_notes(task_id: int, notes: str) -> dict:
     return db.update_progress_notes(_cfg, task_id, notes)
 
 
-@mcp.tool(title="Submit Output")
-def submit_output(task_id: int, output: dict | str, task_name: str = "") -> dict:
+@mcp.tool(title="Finish Step")
+def finish_step(task_id: int, output: dict | str, task_name: str = "") -> dict:
     """Mark the current step complete, store its output, and advance.
 
     Either returns the next step's info (name + playbook, so the agent can
@@ -124,11 +123,17 @@ def submit_output(task_id: int, output: dict | str, task_name: str = "") -> dict
     IMPORTANT — approval gate: if start_or_continue_task returned
     current_step.requires_approval = true for this step, you MUST present the
     output to the user and ask for explicit approval BEFORE calling this tool.
-    Only call submit_output once the user has confirmed they are happy with the
+    Only call finish_step once the user has confirmed they are happy with the
     output. If they request changes, make them first, then ask again.
     """
     if isinstance(output, str):
-        output = json.loads(output)
+        if output.strip():
+            try:
+                output = json.loads(output)
+            except json.JSONDecodeError:
+                pass  # plain text output — store as-is
+        else:
+            output = {}
     return db.submit_output(_cfg, task_id, output, task_name or None)
 
 
@@ -156,61 +161,27 @@ def _library_block() -> str:
 
 @mcp.tool(title="Get Process Skeleton Prompt")
 def get_process_skeleton_prompt() -> str:
-    """Return the Pass 1 system prompt for authoring a new workflow's skeleton.
+    """Return the authoring prompt for designing a new workflow.
 
-    The harness uses it to help the user convert a plain-language workflow
-    description into a structured process skeleton (steps with input/output specs,
-    no playbooks yet).
+    The returned prompt covers both passes:
+    - Pass 1: work with the user to produce and approve a skeleton JSON
+      (steps with input/output specs).
+    - Pass 2: once the user approves, generate all step playbooks silently
+      (no further tool calls needed) and call save_workflow with everything.
     """
     return _WORKFLOW_SKELETON_MD.read_text(encoding="utf-8") + _library_block()
-
-
-@mcp.tool(title="Get Playbook Authoring Prompt")
-def get_playbook_authoring_prompt(step_id: int) -> str:
-    """Return the Pass 2 system prompt for authoring a step's playbook.
-
-    Workflow context (the full process, this step's position, and its
-    input/output specs) is injected at the top of the prompt template.
-    """
-    ctx = db.get_playbook_authoring_context(_cfg, step_id)
-    wf = ctx["workflow"]
-    step = ctx["step"]
-    siblings = ctx["siblings"]
-
-    process_list = " → ".join(
-        f"**{s['name']}**" if s["name"] == step["name"] else s["name"] for s in siblings
-    )
-
-    requires_approval = bool(step.get("requires_approval", False))
-    approval_status = (
-        "YES — agent must show output to user and get approval before submitting"
-        if requires_approval
-        else "NO — agent may submit immediately"
-    )
-
-    context_block = f"""<!-- CONTEXT INJECTED BY MCP SERVER -->
-## Workflow Context
-
-- **Workflow**: {wf["name"]} — {wf["description"]}
-- **Full process**: {process_list}
-- **This step**: **{step["name"]}**
-  - input_spec: {json.dumps(step["input_spec"], indent=2)}
-  - output_spec: {json.dumps(step["output_spec"], indent=2)}
-  - requires_approval (current value): **{approval_status}**
-
----
-
-"""
-    library = _library_block()
-    separator = "\n\n---\n\n" if library else ""
-    return context_block + library + separator + _PLAYBOOK_MD.read_text(encoding="utf-8")
 
 
 @mcp.tool(title="Save Workflow")
 def save_workflow(skeleton: dict, playbooks_by_step: dict) -> dict:
     """Persist a new workflow, its steps, and playbooks.
 
-    skeleton: the JSON object produced by Pass 1 (process skeleton prompt).
+    Intended call sequence:
+    1. get_process_skeleton_prompt → work with user to produce and approve skeleton JSON.
+    2. Generate all step playbooks silently using the Pass 2 instructions in that prompt.
+    3. Call save_workflow(skeleton, playbooks_by_step) with all playbooks collected.
+
+    skeleton: the workflow skeleton dict (name, description, steps[]).
     playbooks_by_step: mapping of step name → playbook markdown string.
 
     After saving, always show the user the monitoring_url from the response.
@@ -235,10 +206,10 @@ def list_workflows() -> dict:
 
 
 
-def run(cfg: Config | None = None) -> None:
-    """Run the MCP server over stdio. Blocks until the client disconnects."""
+def run(cfg: Config | None = None, transport: str = "stdio", **transport_kwargs) -> None:
+    """Run the MCP server. Blocks until the client disconnects (stdio) or killed (sse/http)."""
     global _cfg
     if cfg is not None:
         _cfg = cfg
     configure_logging()  # routes logs to stderr, never stdout
-    mcp.run()  # default transport is stdio
+    mcp.run(transport=transport, **transport_kwargs)
