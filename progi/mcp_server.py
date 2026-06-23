@@ -99,6 +99,23 @@ def start_or_continue_task(task_id: int) -> dict:
     return result
 
 
+@mcp.tool(title="Get Task Context Prompt")
+def get_task_context_prompt(task_id: int) -> str:
+    """Return a prompt summarising the completed steps and their output files for a task.
+
+    Call this whenever the user wants to do something with a task outside the
+    normal work loop — for example:
+    - "I want to edit the draft from task 5"
+    - "re-do the AI polish on task 3"
+    - "the outline for task 7 needs a new section"
+    - "show me what was produced for task 2"
+
+    After calling this tool, read the files referenced in the returned prompt,
+    then help the user with whatever they asked.
+    """
+    return db.get_task_context_prompt(_cfg, task_id)
+
+
 @mcp.tool(title="Update Progress Notes")
 def update_progress_notes(task_id: int, notes: str) -> dict:
     """Overwrite a task's progress_notes.

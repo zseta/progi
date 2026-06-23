@@ -1149,6 +1149,55 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
     }
 
 
+def get_task_context_prompt(cfg: Config, task_id: int) -> str:
+    """Return a prompt summarising the completed steps and their output files for a task.
+
+    Intended for ad-hoc requests: the agent reads this, understands
+    what has already been produced, and can act on whatever the user wants next
+    without re-running the full workflow.
+    """
+    detail = get_task_detail(cfg, task_id)
+    task = detail["task"]
+    instances = detail["step_instances"]
+
+    completed = [si for si in instances if si["status"] == "complete"]
+    # Restore chronological order (get_task_detail returns newest-first)
+    completed = list(reversed(completed))
+
+    lines = [
+        f"# Task context: {task['name']}",
+        f"**Workflow:** {task['workflow_name']}  ",
+        f"**Status:** {task['status']}",
+        "",
+        "The following steps have been completed. Their output files are listed below.",
+        "Read whichever files are relevant to the user's request, then help them.",
+        "",
+        "## Completed steps",
+        "",
+    ]
+    for si in completed:
+        output = si["output"]
+        if isinstance(output, dict):
+            value = output.get("value", output)
+        else:
+            value = output
+        lines.append(f"### {si['step_name']}")
+        lines.append(f"Output: `{value}`")
+        lines.append("")
+
+    if not completed:
+        lines.append("_(No steps completed yet.)_")
+        lines.append("")
+
+    lines += [
+        "## What to do",
+        "",
+        "The user will now tell you what they want. Read the relevant files above and help them.",
+    ]
+
+    return "\n".join(lines)
+
+
 def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None, status: str = "") -> list[dict[str, Any]]:
     """Return all tasks ordered by most recent activity for the board list view."""
     engine = get_engine(cfg)
