@@ -608,7 +608,7 @@ def start_task(cfg: Config, task_id: int) -> dict[str, Any]:
         first_step = _start_step(conn, task["workflow_id"])
         input_spec = first_step["input_spec"]
         input_data = {
-            "description": input_spec["description"],
+            "description": input_spec.get("description", ""),
             "source": "static",
         }
 
