@@ -129,7 +129,7 @@ step_instances = sa.Table(
         "step_id",
         sa.Integer,
         sa.ForeignKey("steps.id"),
-        nullable=False,
+        nullable=True,
     ),
     sa.Column("status", sa.String(32), nullable=False, server_default="pending"),
     sa.Column("input_data", sa.JSON),

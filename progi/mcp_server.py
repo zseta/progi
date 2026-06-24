@@ -116,6 +116,23 @@ def get_task_context_prompt(task_id: int) -> str:
     return db.get_task_context_prompt(_cfg, task_id)
 
 
+@mcp.tool(title="Add Adhoc Step Result")
+def add_adhoc_step_result(task_id: int, output: dict) -> dict:
+    """Record the result of an ad-hoc request as an extra step on the task.
+
+    Call this after completing work triggered by get_task_context_prompt — for
+    example, after the user asked you to add a section, revise a draft, or do
+    any other extra work outside the normal workflow steps.
+
+    The output dict should include:
+    - "name": short description of what was done (e.g. "Added FAQ section")
+    - "user_prompt": the exact message the user sent that triggered this work
+    - any other relevant fields (file paths, etc.)
+    The step will appear in the task's progress history as an ad-hoc step.
+    """
+    return db.add_adhoc_step_result(_cfg, task_id, output)
+
+
 @mcp.tool(title="Update Progress Notes")
 def update_progress_notes(task_id: int, notes: str) -> dict:
     """Overwrite a task's progress_notes.

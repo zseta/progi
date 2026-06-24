@@ -1107,9 +1107,11 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
                     step_instances.c.input_data,
                     step_instances.c.output,
                     step_instances.c.completed_at,
-                    steps.c.name.label("step_name"),
+                    sa.func.coalesce(steps.c.name, "Adhoc step").label("step_name"),
                 )
-                .select_from(step_instances.join(steps, steps.c.id == step_instances.c.step_id))
+                .select_from(
+                    step_instances.outerjoin(steps, steps.c.id == step_instances.c.step_id)
+                )
                 .where(step_instances.c.task_id == task_id)
                 .order_by(
                     # Active instance floats to top, then newest first
@@ -1177,8 +1179,14 @@ def get_task_context_prompt(cfg: Config, task_id: int) -> str:
     ]
     for si in completed:
         output = si["output"]
+        is_adhoc = si["step_id"] is None
         if isinstance(output, dict):
-            value = output.get("value", output)
+            if is_adhoc:
+                # user_prompt is the raw user message — not useful context for the agent
+                display = {k: v for k, v in output.items() if k != "user_prompt"}
+                value = display.get("value", display)
+            else:
+                value = output.get("value", output)
         else:
             value = output
         lines.append(f"### {si['step_name']}")
@@ -1196,6 +1204,35 @@ def get_task_context_prompt(cfg: Config, task_id: int) -> str:
     ]
 
     return "\n".join(lines)
+
+
+def add_adhoc_step_result(cfg: Config, task_id: int, output: dict) -> dict:
+    """Record the result of an ad-hoc request as an extra step instance on the task.
+
+    Creates a completed step_instance with step_id=NULL (not part of the workflow
+    template) so the work is preserved in the task's history without modifying
+    the workflow definition.
+    """
+    engine = get_engine(cfg)
+    with engine.begin() as conn:
+        # Verify task exists
+        task_row = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().first()
+        if not task_row:
+            raise ValueError(f"Task {task_id} not found")
+
+        result = conn.execute(
+            sa.insert(step_instances).values(
+                task_id=task_id,
+                step_id=None,
+                status="complete",
+                input_data=None,
+                output=output,
+                completed_at=_now(),
+            )
+        )
+        si_id = result.inserted_primary_key[0]
+
+    return {"id": si_id, "task_id": task_id, "status": "complete", "output": output}
 
 
 def board_tasks(cfg: Config, q: str = "", workflow_id: int | None = None, status: str = "") -> list[dict[str, Any]]:

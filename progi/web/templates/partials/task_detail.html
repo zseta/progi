@@ -97,20 +97,22 @@
             <div class="rounded-lg bg-surface-1 px-3 py-2 flex flex-col gap-1.5">
               <div class="flex items-center justify-between gap-2">
                 <div class="flex items-center gap-1.5 min-w-0">
-                  <span class="text-xs font-medium text-primary truncate" x-text="si.step_name"></span>
-                  <a
-                    :href="`/workflows/${task.workflow_id}/steps/${si.step_id}`"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-faint hover:text-primary transition-colors shrink-0"
-                    title="Open step"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                      <polyline points="15 3 21 3 21 9"/>
-                      <line x1="10" y1="14" x2="21" y2="3"/>
-                    </svg>
-                  </a>
+                  <span class="text-xs font-medium text-primary truncate" x-text="si.step_id ? si.step_name : ('Adhoc step' + (si.output && si.output.name ? ' \u2013 ' + si.output.name : ''))"></span>
+                  <template x-if="si.step_id">
+                    <a
+                      :href="`/workflows/${task.workflow_id}/steps/${si.step_id}`"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-faint hover:text-primary transition-colors shrink-0"
+                      title="Open step"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                        <polyline points="15 3 21 3 21 9"/>
+                        <line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                    </a>
+                  </template>
                 </div>
                 <span
                   class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
