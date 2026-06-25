@@ -99,7 +99,7 @@ def start_or_continue_task(task_id: int) -> dict:
     return result
 
 
-@mcp.tool(title="Get Task Context Prompt")
+@mcp.tool(title="Get Task Context Prompt", output_schema=None)
 def get_task_context_prompt(task_id: int) -> str:
     """Return a prompt summarising the completed steps and their output files for a task.
 
@@ -193,7 +193,7 @@ def _library_block() -> str:
     return "\n".join(lines)
 
 
-@mcp.tool(title="Get Process Skeleton Prompt")
+@mcp.tool(title="Get Process Skeleton Prompt", output_schema=None)
 def get_process_skeleton_prompt() -> str:
     """Return the authoring prompt for designing a new workflow.
 
