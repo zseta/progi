@@ -316,6 +316,9 @@ def save_workflow(
         edge_defs = skeleton_json.get("edges")
         if edge_defs:
             for edge in edge_defs:
+                # LLMs occasionally emit edges with null endpoints — skip rather than crash
+                if edge.get("from") not in step_id_by_name or edge.get("to") not in step_id_by_name:
+                    continue
                 from_id = step_id_by_name[edge["from"]]
                 to_id = step_id_by_name[edge["to"]]
                 conn.execute(
