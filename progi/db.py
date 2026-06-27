@@ -508,8 +508,6 @@ def add_step_to_workflow(
             .mappings()
             .all()
         )
-        ids_by_order = {r["order"]: r["id"] for r in ordered}
-
         prev_id: int | None = None
         next_id: int | None = None
         for r in ordered:
