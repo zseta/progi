@@ -318,16 +318,38 @@ function workflowEditor() {
         def += `  ${nodeId}["${label}"]\n`;
       });
 
-      // Add edges
+      // Add edges, grouping parallel forks into Mermaid's `A --> B & C` syntax
       if (edges.length > 0) {
+        // Group edges by from_step_id to detect parallel forks
+        const byFrom = {};
         edges.forEach(e => {
+          (byFrom[e.from_step_id] = byFrom[e.from_step_id] || []).push(e);
+        });
+
+        // Track which edges were already emitted as part of a parallel group
+        const emitted = new Set();
+
+        edges.forEach(e => {
+          if (emitted.has(e.id ?? `${e.from_step_id}-${e.to_step_id}`)) return;
+
           const from = `step_${e.from_step_id}`;
-          const to   = `step_${e.to_step_id}`;
-          if (e.condition) {
+          const siblings = byFrom[e.from_step_id] || [];
+          const parallelSiblings = siblings.filter(s => s.parallel);
+
+          if (e.parallel && parallelSiblings.length > 1) {
+            // Emit all parallel edges from this source as one `A --> B & C & D` line
+            const targets = parallelSiblings.map(s => `step_${s.to_step_id}`).join(' & ');
+            def += `  ${from} --> ${targets}\n`;
+            parallelSiblings.forEach(s => {
+              emitted.add(s.id ?? `${s.from_step_id}-${s.to_step_id}`);
+            });
+          } else if (e.condition) {
             const label = _conditionLabel(e.condition);
-            def += `  ${from} -->|"${label}"| ${to}\n`;
+            def += `  ${from} -->|"${label}"| step_${e.to_step_id}\n`;
+            emitted.add(e.id ?? `${e.from_step_id}-${e.to_step_id}`);
           } else {
-            def += `  ${from} --> ${to}\n`;
+            def += `  ${from} --> step_${e.to_step_id}\n`;
+            emitted.add(e.id ?? `${e.from_step_id}-${e.to_step_id}`);
           }
         });
       } else {

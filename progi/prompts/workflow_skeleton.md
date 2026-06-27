@@ -89,6 +89,25 @@ For a branching workflow, the edges express the routing logic:
 - **Loops** are expressed as back-edges: an edge from a later step back to an
   earlier step. Use a conditional edge (priority 0) for the exit path and a
   second edge (priority 1, condition or `null`) for the loop-back.
+- **Parallel steps** — if two or more steps can be done at the same time
+  (they don't depend on each other's output), mark those edges with
+  `"parallel": true`. All edges in a parallel group must share the same
+  `from` step and have `"condition": null`. A join step after the group
+  receives the output of whichever parallel branch finished last (sequential
+  execution is unchanged — this flag only affects visualization).
+
+  Example — Research, Design, and Legal Review can all happen after Kickoff:
+
+  ```json
+  {"from": "Kickoff",         "to": "Research",      "condition": null, "priority": 0, "parallel": true},
+  {"from": "Kickoff",         "to": "Design",         "condition": null, "priority": 0, "parallel": true},
+  {"from": "Kickoff",         "to": "Legal Review",   "condition": null, "priority": 0, "parallel": true},
+  {"from": "Research",        "to": "Write Draft",    "condition": null, "priority": 0},
+  {"from": "Design",          "to": "Write Draft",    "condition": null, "priority": 0},
+  {"from": "Legal Review",    "to": "Write Draft",    "condition": null, "priority": 0}
+  ```
+
+  Non-parallel edges default to `"parallel": false` and can be omitted.
 
 ## After the user approves the skeleton
 
