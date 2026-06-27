@@ -30,19 +30,24 @@
           <template x-for="s in prevSteps" :key="s.id">
             <div class="flex items-start gap-3 rounded-lg bg-surface-1 px-3 py-2">
               <span class="text-accent text-xs mt-0.5">←</span>
-              <div>
-                <a
-                  href="#"
-                  @click.prevent="navigateStep(s.id)"
-                  class="text-xs text-accent font-medium hover:underline cursor-pointer"
-                  x-text="s.name"
-                ></a>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <a
+                    href="#"
+                    @click.prevent="navigateStep(s.id)"
+                    class="text-xs text-accent font-medium hover:underline cursor-pointer"
+                    x-text="s.name"
+                  ></a>
+                  <template x-if="s.parallel">
+                    <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-surface-3 text-faint tracking-wide uppercase">parallel</span>
+                  </template>
+                </div>
                 <template x-if="s.condition">
                   <p class="text-xs text-muted mt-0.5"
                     x-text="`when ${s.condition.field} ${s.condition.operator} ${JSON.stringify(s.condition.value)}`">
                   </p>
                 </template>
-                <template x-if="!s.condition">
+                <template x-if="!s.condition && !s.parallel">
                   <p class="text-xs text-ghost mt-0.5">unconditional</p>
                 </template>
               </div>
@@ -63,19 +68,24 @@
           <template x-for="s in nextSteps" :key="s.id">
             <div class="flex items-start gap-3 rounded-lg bg-surface-1 px-3 py-2">
               <span class="text-accent text-xs mt-0.5">→</span>
-              <div>
-                <a
-                  href="#"
-                  @click.prevent="navigateStep(s.id)"
-                  class="text-xs text-accent font-medium hover:underline cursor-pointer"
-                  x-text="s.name"
-                ></a>
+              <div class="flex-1">
+                <div class="flex items-center gap-2">
+                  <a
+                    href="#"
+                    @click.prevent="navigateStep(s.id)"
+                    class="text-xs text-accent font-medium hover:underline cursor-pointer"
+                    x-text="s.name"
+                  ></a>
+                  <template x-if="s.parallel">
+                    <span class="text-[10px] font-medium px-1.5 py-0.5 rounded bg-surface-3 text-faint tracking-wide uppercase">parallel</span>
+                  </template>
+                </div>
                 <template x-if="s.condition">
                   <p class="text-xs text-muted mt-0.5"
                     x-text="`when ${s.condition.field} ${s.condition.operator} ${JSON.stringify(s.condition.value)}`">
                   </p>
                 </template>
-                <template x-if="!s.condition">
+                <template x-if="!s.condition && !s.parallel">
                   <p class="text-xs text-ghost mt-0.5">unconditional</p>
                 </template>
               </div>

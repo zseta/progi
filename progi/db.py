@@ -326,6 +326,7 @@ def save_workflow(
                         to_step_id=to_id,
                         condition=edge.get("condition"),
                         priority=edge.get("priority", 0),
+                        parallel=bool(edge.get("parallel", False)),
                     )
                 )
         else:
@@ -1073,6 +1074,7 @@ def get_workflow_with_playbooks(cfg: Config, workflow_id: int) -> dict[str, Any]
                 "to_step_id": e["to_step_id"],
                 "condition": e["condition"],
                 "priority": e["priority"],
+                "parallel": bool(e["parallel"]),
             }
             for e in edge_rows
         ],
@@ -1099,6 +1101,7 @@ def export_workflow(cfg: Config, workflow_id: int) -> dict[str, Any]:
                 "to": step_by_id[e["to_step_id"]]["name"],
                 "condition": e["condition"],
                 "priority": e["priority"],
+                "parallel": e.get("parallel", False),
             }
             for e in wf["edges"]
         ],
@@ -1169,6 +1172,7 @@ def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, An
             "id": e["from_step_id"],
             "name": step_names.get(e["from_step_id"], str(e["from_step_id"])),
             "condition": e["condition"],
+            "parallel": bool(e["parallel"]),
         }
         for e in edge_rows
         if e["to_step_id"] == step_id
@@ -1178,6 +1182,7 @@ def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, An
             "id": e["to_step_id"],
             "name": step_names.get(e["to_step_id"], str(e["to_step_id"])),
             "condition": e["condition"],
+            "parallel": bool(e["parallel"]),
         }
         for e in edge_rows
         if e["from_step_id"] == step_id

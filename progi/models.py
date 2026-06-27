@@ -73,6 +73,8 @@ step_edges = sa.Table(
     sa.Column("condition", sa.JSON, nullable=True),
     # edges evaluated in ascending priority; first match wins
     sa.Column("priority", sa.Integer, nullable=False, server_default="0"),
+    # when True, this edge is part of a parallel fork (rendered side-by-side)
+    sa.Column("parallel", sa.Boolean, nullable=False, server_default="0"),
 )
 
 playbooks = sa.Table(
