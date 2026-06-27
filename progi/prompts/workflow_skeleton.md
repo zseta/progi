@@ -6,8 +6,8 @@ by **edges** that define how execution flows between them — including conditio
 branches. Each step will later get a playbook (that happens in Pass 2 — not now).
 
 Your job in this pass is to turn the user's plain-language description of a
-workflow into a **structured process skeleton**: the list of steps with their
-input and output specifications, plus the edges that connect them.
+workflow into a **structured process skeleton**: the list of steps plus the edges
+that connect them.
 
 ## How to work
 
@@ -15,10 +15,12 @@ input and output specifications, plus the edges that connect them.
 2. If the workflow is ambiguous (unclear steps, unclear deliverables, unclear
    branching logic), ask the user clarifying questions before producing the
    skeleton. Confirm the step list and branching logic with the user before
-   finalizing — playbooks are written against these specs, so the structure must
-   be right first.
-3. When a step has conditional outgoing edges, consider adding helper field(s) in the `output_spec` for the condition check(s).
-3. Produce the skeleton as a single JSON object (see schema below).
+   finalizing — playbooks are written against this structure, so it must be right
+   first.
+3. When a step has conditional outgoing edges, the step's playbook will need to
+   produce an output dict containing the field(s) used by those conditions. Keep
+   this in mind when naming steps and edges.
+4. Produce the skeleton as a single JSON object (see schema below).
 
 ## Output schema
 
@@ -29,23 +31,13 @@ Return exactly one JSON object of this shape:
   "name": "Blog Post",
   "description": "Workflow for researching, writing, editing, and publishing a blog post.",
   "steps": [
-    {
-      "order": 1,
-      "name": "Research",
-      "input_spec": {
-        "description": "What this step needs to begin.",
-        "source": "static",
-        "from_step": null
-      },
-      "output_spec": {
-        "type": "file",
-        "description": "The deliverable that proves the step is done.",
-        "constraints": "e.g. must be a markdown file"
-      }
-    }
+    {"order": 1, "name": "Research"},
+    {"order": 2, "name": "Outline"},
+    {"order": 3, "name": "Draft"}
   ],
   "edges": [
-    {"from": "Research", "to": "Outline", "condition": null, "priority": 0}
+    {"from": "Research", "to": "Outline", "condition": null, "priority": 0},
+    {"from": "Outline",  "to": "Draft",   "condition": null, "priority": 0}
   ]
 }
 ```
@@ -57,9 +49,9 @@ For a branching workflow, the edges express the routing logic:
   "name": "Content Review",
   "description": "Write and review before publishing, with an optional fast-track.",
   "steps": [
-    {"order": 1, "name": "Draft",    "input_spec": {"description": "Topic.", "source": "static", "from_step": null},    "output_spec": {"type": "file", "description": "Draft", "constraints": "include review_needed boolean"}},
-    {"order": 2, "name": "Edit",     "input_spec": {"description": "Draft.", "source": "previous_step_output", "from_step": "Draft"}, "output_spec": {"type": "file", "description": "Edited doc", "constraints": "markdown"}},
-    {"order": 3, "name": "Publish",  "input_spec": {"description": "Doc to publish.", "source": "previous_step_output", "from_step": "Edit"}, "output_spec": {"type": "url", "description": "Published URL", "constraints": "valid URL"}}
+    {"order": 1, "name": "Draft"},
+    {"order": 2, "name": "Edit"},
+    {"order": 3, "name": "Publish"}
   ],
   "edges": [
     {"from": "Draft",  "to": "Edit",    "condition": {"field": "review_needed", "operator": "eq", "value": true},  "priority": 0},
@@ -73,15 +65,12 @@ For a branching workflow, the edges express the routing logic:
 
 - `order` — integer used only for display/layout ordering; it does **not**
   determine execution order (edges do). Use sequential 1-based integers.
-- `input_spec.source` — either `"static"` (the step starts from information given
-  at task creation) or `"previous_step_output"` (it consumes a prior step's
-  output). When `previous_step_output`, set `from_step` to the **name** of the
-  source step (e.g. `"Draft"`); otherwise `from_step` is `null`.
-- `output_spec.type` — one of `"file"`, `"url"`, or `"text"`.
-- The **entry step** (no incoming edges) should almost always have
-  `input_spec.source = "static"`.
 - Keep steps coarse enough to be meaningful deliverables (3–6 steps is typical),
   not micro-tasks.
+- **Data flow**: the first step automatically receives `input_data.value` = the
+  task's description/topic (whatever the user provided when creating the task).
+  Every subsequent step automatically receives `input_data.value` = the previous
+  step's output value. The playbook for each step describes how to use it.
 - `edges` — list of transitions. Each edge has:
   - `from` — name of the source step
   - `to` — name of the destination step
@@ -99,10 +88,7 @@ For a branching workflow, the edges express the routing logic:
   linear edges from the `order` values.
 - **Loops** are expressed as back-edges: an edge from a later step back to an
   earlier step. Use a conditional edge (priority 0) for the exit path and a
-  second edge (priority 1, condition or `null`) for the loop-back. The looping
-  step should use `source: "previous_step_output"` to carry state forward across
-  iterations — the runtime always uses the most recent completed output for the
-  named `from_step`.
+  second edge (priority 1, condition or `null`) for the loop-back.
 
 ## After the user approves the skeleton
 
@@ -123,33 +109,29 @@ designed. A playbook is one self-contained markdown document that the AI
 **agent** (the assistant inside the user's harness — Claude Code, Cursor, etc.)
 will follow to perform that step at runtime.
 
-For each step in the skeleton, write a playbook against its `input_spec`,
-`output_spec`, and `requires_approval` flag. Collect all playbooks into the
+For each step in the skeleton, write a playbook. Collect all playbooks into the
 `playbooks_by_step` map (step name → markdown string) and pass them to
 `save_workflow`.
 
-## What a good playbook contains
+## Playbook structure
 
-Write a markdown document that includes:
+Every playbook must contain exactly these four `##` sections, in this order. No `#` (h1) heading. Subsections (`###`, `####`, etc.) are allowed within each section as needed.
 
-1. **A heading** naming the step and its role in the larger workflow.
-2. **Input** — what the step starts from. If `input_spec.source` is
-   `previous_step_output`, the prior step's output is available; say how to find
-   or use it. If `static`, describe what to ask the user for.
-3. **Working instructions** — the concrete actions the agent takes to produce
-   the deliverable.
-4. **Human-involvement points** — there is no separate "human step": every step
-   is run by the agent, and the playbook decides when to pull the human in. Be
-   explicit, e.g. "ask the user to confirm tone before drafting". The
-   `requires_approval` flag on the step controls whether the agent must present
-   the final output to the user and receive explicit sign-off before calling
-   `finish_step`. If it is true, the playbook should describe what to show the
-   user and how to handle requested changes before submitting.
-5. **Output** — exactly what deliverable satisfies `output_spec` (a file path, a
-   URL, or text) and how the agent reports it back. The agent submits this via
-   `finish_step`, which advances the task to the next step.
+### `## Input`
+Describe what the step starts from.
+- For the **first step**: `input_data.value` contains the task description/topic the user provided at task creation. Say what to do with it (e.g. ask the user for clarification if needed).
+- For **all subsequent steps**: `input_data.value` contains the previous step's output (typically a file path or URL). Say where to find it and how to use it.
+
+### `## Instructions`
+The concrete actions the agent takes to produce the deliverable. Be specific and actionable.
+
+### `## Human involvement`
+Explicitly state every point where a human must act or approve something, and what they need to do. If no human involvement is needed, state that clearly (e.g. "None — proceed autonomously.").
+
+### `## Output`
+Exactly what deliverable the step produces, what format, and how the agent reports it back via `finish_step`. For steps with conditional outgoing edges, explicitly list the output dict fields that edge conditions reference (e.g. "`review_needed`: true/false").
 
 ## Style
-- Address the agent in the second person ("You are working on…").
+- Address the agent in the second person.
 - Be specific and actionable; no fluff.
 - Keep each playbook to a single markdown document — no separate files.

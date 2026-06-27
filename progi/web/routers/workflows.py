@@ -134,7 +134,7 @@ def update_step(
         if "playbook" in payload:
             db.update_playbook(cfg, step_id, payload.pop("playbook"))
         step_fields = {
-            k: v for k, v in payload.items() if k in ("name", "input_spec", "output_spec")
+            k: v for k, v in payload.items() if k in ("name",)
         }
         if step_fields:
             db.update_step(cfg, step_id, **step_fields)

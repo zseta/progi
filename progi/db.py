@@ -272,7 +272,7 @@ def save_workflow(
             "name": str,
             "description": str,
             "steps": [
-                {"order": int, "name": str, "input_spec": {...}, "output_spec": {...}}
+                {"order": int, "name": str}
             ],
             "edges": [                          # optional; auto-generated if absent
                 {"from": str, "to": str, "condition": {...} | null, "priority": int}
@@ -301,8 +301,6 @@ def save_workflow(
                     workflow_id=wf_id,
                     order=step["order"],
                     name=step["name"],
-                    input_spec=step["input_spec"],
-                    output_spec=step["output_spec"],
                     requires_approval=step.get("requires_approval", False),
                 )
             ).inserted_primary_key[0]
@@ -377,8 +375,6 @@ def list_workflows(cfg: Config) -> list[dict[str, Any]]:
                 "id": s["id"],
                 "order": s["order"],
                 "name": s["name"],
-                "input_spec": s["input_spec"],
-                "output_spec": s["output_spec"],
             }
         )
 
@@ -448,8 +444,6 @@ def add_step_to_workflow(
     workflow_id: int,
     name: str,
     order: int,
-    input_spec: dict[str, Any],
-    output_spec: dict[str, Any],
     playbook: str | None = None,
     requires_approval: bool = False,
     *,
@@ -489,8 +483,6 @@ def add_step_to_workflow(
                 workflow_id=workflow_id,
                 order=order,
                 name=name,
-                input_spec=input_spec,
-                output_spec=output_spec,
                 requires_approval=requires_approval,
             )
         ).inserted_primary_key[0]
@@ -652,8 +644,6 @@ def update_step(
     step_id: int,
     *,
     name: str | None = None,
-    input_spec: dict[str, Any] | None = None,
-    output_spec: dict[str, Any] | None = None,
     order: int | None = None,
     requires_approval: bool | None = None,
 ) -> dict[str, Any]:
@@ -661,10 +651,6 @@ def update_step(
     values: dict[str, Any] = {}
     if name is not None:
         values["name"] = name
-    if input_spec is not None:
-        values["input_spec"] = input_spec
-    if output_spec is not None:
-        values["output_spec"] = output_spec
     if order is not None:
         values["order"] = order
     if requires_approval is not None:
@@ -735,7 +721,6 @@ def create_task(cfg: Config, name: str, workflow_id: int, description: str = "")
     result["first_step"] = {
         "name": first["name"],
         "order": first["order"],
-        "input_spec": first["input_spec"],
     }
     return result
 
@@ -798,11 +783,7 @@ def start_task(cfg: Config, task_id: int) -> dict[str, Any]:
             )
 
         first_step = _start_step(conn, task["workflow_id"])
-        input_spec = first_step["input_spec"]
-        input_data = {
-            "description": input_spec.get("description", ""),
-            "source": "static",
-        }
+        input_data = {"value": task["description"] or ""}
 
         _activate_step(conn, task_id, task["workflow_id"], first_step, input_data)
 
@@ -849,8 +830,8 @@ def start_or_continue_task(cfg: Config, task_id: int) -> dict[str, Any]:
     - todo        → starts the task (todo → in_progress), returns full step context.
     - in_progress → returns full step context so the agent can resume.
 
-    Full context: task info, current step name + position, input_data, output_spec,
-    playbook content, and progress_notes (if any).
+    Full context: task info, current step name, input_data, playbook content,
+    and progress_notes (if any).
     """
     engine = get_engine(cfg)
     with engine.connect() as conn:
@@ -899,7 +880,6 @@ def start_or_continue_task(cfg: Config, task_id: int) -> dict[str, Any]:
         "current_step": {
             "name": current_step["name"],
             "input_data": si["input_data"] if si else None,
-            "output_spec": current_step["output_spec"],
             "playbook": pb[0] if pb else None,
             "requires_approval": bool(current_step["requires_approval"]),
         },
@@ -992,41 +972,10 @@ def submit_output(
             )
             return {"status": "done"}
 
-        # Resolve input_data for next step
-        next_input_spec = next_step["input_spec"]
-        if next_input_spec.get("source") == "previous_step_output":
-            from_step_name = next_input_spec.get("from_step")
-            if from_step_name and from_step_name != current_step["name"]:
-                # Pull output from a specific earlier step by name
-                source_step_row = conn.execute(
-                    sa.select(steps.c.id).where(
-                        steps.c.workflow_id == task["workflow_id"],
-                        steps.c.name == from_step_name,
-                    )
-                ).first()
-                if source_step_row is None:
-                    raise ValueError(f"from_step '{from_step_name}' not found in workflow.")
-                source_si = conn.execute(
-                    sa.select(step_instances.c.output).where(
-                        step_instances.c.task_id == task_id,
-                        step_instances.c.step_id == source_step_row[0],
-                        step_instances.c.status == "complete",
-                    ).order_by(step_instances.c.id.desc())
-                ).first()
-                source_output = source_si[0] if source_si else {}
-            else:
-                # Default: use the step we just completed
-                source_output = output
-
-            next_input_data = {
-                "value": source_output if isinstance(source_output, str) else source_output.get("value", source_output),
-                "from_step": from_step_name or current_step["name"],
-            }
-        else:
-            next_input_data = {
-                "description": next_input_spec.get("description", ""),
-                "source": "static",
-            }
+        # Pass the current step's output as the next step's input
+        next_input_data = {
+            "value": output if isinstance(output, str) else output.get("value", output),
+        }
 
         # Activate next step (create instance + update task pointer)
         conn.execute(
@@ -1114,8 +1063,6 @@ def get_workflow_with_playbooks(cfg: Config, workflow_id: int) -> dict[str, Any]
                 "id": s["id"],
                 "order": s["order"],
                 "name": s["name"],
-                "input_spec": s["input_spec"],
-                "output_spec": s["output_spec"],
                 "playbook": playbook_by_step.get(s["id"]),
             }
             for s in step_rows
@@ -1143,8 +1090,6 @@ def export_workflow(cfg: Config, workflow_id: int) -> dict[str, Any]:
             {
                 "order": s["order"],
                 "name": s["name"],
-                "input_spec": s["input_spec"],
-                "output_spec": s["output_spec"],
             }
             for s in wf["steps"]
         ],
@@ -1244,8 +1189,6 @@ def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, An
             "id": step["id"],
             "order": step["order"],
             "name": step["name"],
-            "input_spec": step["input_spec"],
-            "output_spec": step["output_spec"],
             "playbook": pb,
             "library_entry_id": step["library_entry_id"],
         },
