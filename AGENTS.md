@@ -117,6 +117,10 @@ app.include_router(mypage.router)
 - `input_spec` / `output_spec` / `input_data` / `output` are `sa.JSON` columns — pass and receive plain dicts, no manual `json.dumps`.
 - Keep the web UI localhost-only (unauthenticated DB viewer).
 
+### Keeping `x-data` lean
+
+Never put non-trivial logic (multi-line functions, getters with loops) directly in `x-data` attributes in templates. Instead, add the state and methods to the relevant Alpine component function in `app.js` and reference them from the template. Inline `x-data` is fine for simple boolean flags (`x-data="{ open: false }"`), but anything complex belongs in `app.js`.
+
 ### Choosing between fetch + JS state vs. Alpine AJAX partials
 
 Use **plain `fetch` + Alpine reactive state** (in `app.js`) when:
@@ -164,11 +168,6 @@ uv run just migrate "msg" && uv run just upgrade   # Alembic migration
 uv run python -m pytest              # tests (do NOT use `uv run pytest` — a system pytest may shadow it)
 uv run ruff check progi              # lint
 ```
-
-## Run modes
-
-`progi` (MCP + web), `progi --no-web` (MCP only), `progi-web` (web only).
-Config via env: `PROGI_DB_PATH`, `PROGI_WEB_HOST`, `PROGI_WEB_PORT`, `PROGI_NO_WEB`.
 
 ## Git commit convention
 Commit messages must follow Conventional Commits: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`, `test:`, `ci:`. Use `feat!:` for breaking changes. Release Please reads these to generate the changelog and determine the version bump.

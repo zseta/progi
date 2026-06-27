@@ -122,6 +122,21 @@ def delete_workflow(workflow_id: int, request: Request):
     return Response(status_code=204)
 
 
+@router.patch("/workflows/{workflow_id}/playbook", status_code=204)
+def update_workflow_playbook(
+    workflow_id: int,
+    request: Request,
+    payload: dict = Body(...),
+):
+    cfg = request.app.state.cfg
+    playbook = payload.get("playbook", "")
+    try:
+        db.update_workflow_playbook(cfg, workflow_id, playbook)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return Response(status_code=204)
+
+
 @router.patch("/workflows/{workflow_id}/steps/{step_id}")
 def update_step(
     workflow_id: int,

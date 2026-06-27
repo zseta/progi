@@ -46,6 +46,10 @@ from .config import Config
 from .models import library_entries, playbooks, step_edges, step_instances, steps, tasks, workflows
 from .models import metadata  # noqa: F401 — re-exported for test helpers
 
+import logging
+
+_log = logging.getLogger(__name__)
+
 # ---------------------------------------------------------------------------
 # Engine
 # ---------------------------------------------------------------------------
@@ -255,6 +259,80 @@ def _resolve_next_step(conn, current_step_id: int, output: dict) -> dict[str, An
 
 
 # ---------------------------------------------------------------------------
+# Sub-workflow helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_sub_workflow_ancestor_ids(conn, workflow_id: int) -> set[int]:
+    """Return the set of all workflow IDs that (transitively) use workflow_id as a sub-workflow.
+
+    Used for circular reference detection: if workflow A is being added as a
+    sub-workflow step inside workflow B, we must ensure B is not already an
+    ancestor of A (which would create a cycle).
+    """
+    ancestors: set[int] = set()
+    queue = [workflow_id]
+    while queue:
+        wid = queue.pop()
+        # Find all workflows that have a step whose sub_workflow_id == wid
+        rows = conn.execute(
+            sa.select(steps.c.workflow_id)
+            .where(steps.c.sub_workflow_id == wid)
+            .distinct()
+        ).scalars().all()
+        for parent_wf_id in rows:
+            if parent_wf_id not in ancestors:
+                ancestors.add(parent_wf_id)
+                queue.append(parent_wf_id)
+    return ancestors
+
+
+def _check_no_circular_ref(conn, parent_workflow_id: int, sub_workflow_id: int) -> None:
+    """Raise ValueError if adding sub_workflow_id as a step in parent_workflow_id would create a cycle."""
+    if sub_workflow_id == parent_workflow_id:
+        raise ValueError(
+            f"Workflow {parent_workflow_id} cannot reference itself as a sub-workflow."
+        )
+    ancestors = _get_sub_workflow_ancestor_ids(conn, parent_workflow_id)
+    if sub_workflow_id in ancestors:
+        raise ValueError(
+            f"Adding workflow {sub_workflow_id} as a sub-workflow of {parent_workflow_id} "
+            f"would create a circular reference."
+        )
+
+
+def _expand_sub_workflow(
+    conn,
+    task_id: int,
+    sub_workflow_id: int,
+    sub_workflow_step_id: int,
+    input_data: dict,
+) -> dict:
+    """Activate the entry step of a sub-workflow within the parent task.
+
+    Creates a step_instance for the sub-workflow's entry step with
+    sub_workflow_step_id set, and updates the task's current_step_id.
+    Returns the activated step dict.
+    """
+    entry_step = _start_step(conn, sub_workflow_id)
+    conn.execute(
+        sa.insert(step_instances).values(
+            task_id=task_id,
+            step_id=entry_step["id"],
+            status="active",
+            input_data=input_data,
+            sub_workflow_step_id=sub_workflow_step_id,
+        )
+    )
+    conn.execute(
+        sa.update(tasks)
+        .where(tasks.c.id == task_id)
+        .values(current_step_id=entry_step["id"], status="in_progress")
+    )
+    return entry_step
+
+
+# ---------------------------------------------------------------------------
 # Workflow authoring
 # ---------------------------------------------------------------------------
 
@@ -263,6 +341,7 @@ def save_workflow(
     cfg: Config,
     skeleton_json: dict[str, Any],
     playbooks_by_step: dict[str, str],
+    workflow_playbook: str | None = None,
 ) -> dict[str, Any]:
     """Persist a workflow, its steps, edges, and playbooks in one transaction.
 
@@ -272,7 +351,7 @@ def save_workflow(
             "name": str,
             "description": str,
             "steps": [
-                {"order": int, "name": str}
+                {"order": int, "name": str, "sub_workflow_id": int | null}
             ],
             "edges": [                          # optional; auto-generated if absent
                 {"from": str, "to": str, "condition": {...} | null, "priority": int}
@@ -283,6 +362,8 @@ def save_workflow(
     ``order`` values (step[i] → step[i+1]).
 
     playbooks_by_step: mapping of step name → playbook markdown string.
+    workflow_playbook: markdown string for the workflow-level playbook (Purpose/Input/Output).
+                       Required when the workflow may be used as a sub-workflow step.
     """
     engine = get_engine(cfg)
     with engine.begin() as conn:
@@ -290,18 +371,31 @@ def save_workflow(
             sa.insert(workflows).values(
                 name=skeleton_json["name"],
                 description=skeleton_json.get("description"),
+                playbook=workflow_playbook,
             )
         ).inserted_primary_key[0]
 
         step_rows: list[dict[str, Any]] = []
         _steps_list = skeleton_json.get("process") or skeleton_json.get("steps") or []
         for step in sorted(_steps_list, key=lambda s: s["order"]):
+            sub_wf_id = step.get("sub_workflow_id")
+            if sub_wf_id is not None:
+                _check_no_circular_ref(conn, wf_id, sub_wf_id)
+                # Validate the sub-workflow has a playbook
+                sub_pb = conn.execute(
+                    sa.select(workflows.c.playbook).where(workflows.c.id == sub_wf_id)
+                ).scalar()
+                if not sub_pb:
+                    raise ValueError(
+                        f"Workflow {sub_wf_id} has no playbook and cannot be used as a sub-workflow step."
+                    )
             step_id = conn.execute(
                 sa.insert(steps).values(
                     workflow_id=wf_id,
                     order=step["order"],
                     name=step["name"],
                     requires_approval=step.get("requires_approval", False),
+                    sub_workflow_id=sub_wf_id,
                 )
             ).inserted_primary_key[0]
             step_row = conn.execute(sa.select(steps).where(steps.c.id == step_id)).mappings().one()
@@ -447,6 +541,7 @@ def add_step_to_workflow(
     order: int,
     playbook: str | None = None,
     requires_approval: bool = False,
+    sub_workflow_id: int | None = None,
     *,
     reorder: bool = True,
 ) -> dict[str, Any]:
@@ -472,6 +567,16 @@ def add_step_to_workflow(
         if wf is None:
             raise ValueError(f"Workflow {workflow_id} not found.")
 
+        if sub_workflow_id is not None:
+            _check_no_circular_ref(conn, workflow_id, sub_workflow_id)
+            sub_pb = conn.execute(
+                sa.select(workflows.c.playbook).where(workflows.c.id == sub_workflow_id)
+            ).scalar()
+            if not sub_pb:
+                raise ValueError(
+                    f"Workflow {sub_workflow_id} has no playbook and cannot be used as a sub-workflow step."
+                )
+
         if reorder:
             conn.execute(
                 sa.update(steps)
@@ -485,6 +590,7 @@ def add_step_to_workflow(
                 order=order,
                 name=name,
                 requires_approval=requires_approval,
+                sub_workflow_id=sub_workflow_id,
             )
         ).inserted_primary_key[0]
 
@@ -640,6 +746,19 @@ def update_workflow(cfg: Config, workflow_id: int, name: str) -> dict[str, Any]:
     return dict(row)
 
 
+def update_workflow_playbook(cfg: Config, workflow_id: int, playbook: str) -> dict[str, Any]:
+    """Set or replace the workflow-level playbook. Returns the updated workflow record."""
+    engine = get_engine(cfg)
+    with engine.begin() as conn:
+        result = conn.execute(
+            sa.update(workflows).where(workflows.c.id == workflow_id).values(playbook=playbook)
+        )
+        if result.rowcount == 0:
+            raise ValueError(f"Workflow {workflow_id} not found.")
+        row = conn.execute(sa.select(workflows).where(workflows.c.id == workflow_id)).mappings().one()
+    return dict(row)
+
+
 def update_step(
     cfg: Config,
     step_id: int,
@@ -748,6 +867,7 @@ def _activate_step(
     task_workflow_id: int,
     step: dict[str, Any],
     input_data: dict[str, Any],
+    sub_workflow_step_id: int | None = None,
 ) -> None:
     """Create a step_instance for ``step`` and mark it active."""
     conn.execute(
@@ -756,6 +876,7 @@ def _activate_step(
             step_id=step["id"],
             status="active",
             input_data=input_data,
+            sub_workflow_step_id=sub_workflow_step_id,
         )
     )
     conn.execute(
@@ -786,7 +907,10 @@ def start_task(cfg: Config, task_id: int) -> dict[str, Any]:
         first_step = _start_step(conn, task["workflow_id"])
         input_data = {"value": task["description"] or ""}
 
-        _activate_step(conn, task_id, task["workflow_id"], first_step, input_data)
+        if first_step.get("sub_workflow_id"):
+            _expand_sub_workflow(conn, task_id, first_step["sub_workflow_id"], first_step["id"], input_data)
+        else:
+            _activate_step(conn, task_id, task["workflow_id"], first_step, input_data)
 
         updated = conn.execute(sa.select(tasks).where(tasks.c.id == task_id)).mappings().one()
     return dict(updated)
@@ -871,6 +995,18 @@ def start_or_continue_task(cfg: Config, task_id: int) -> dict[str, Any]:
             sa.select(playbooks.c.content).where(playbooks.c.step_id == current_step["id"])
         ).first()
 
+        # Check if current step is a sub-workflow step (has sub_workflow_id but no own playbook)
+        sub_wf_id = current_step.get("sub_workflow_id")
+        sub_wf_playbook: str | None = None
+        sub_wf_name: str | None = None
+        if sub_wf_id:
+            sub_wf_row = conn.execute(
+                sa.select(workflows.c.name, workflows.c.playbook).where(workflows.c.id == sub_wf_id)
+            ).mappings().one_or_none()
+            if sub_wf_row:
+                sub_wf_name = sub_wf_row["name"]
+                sub_wf_playbook = sub_wf_row["playbook"]
+
     result: dict[str, Any] = {
         "task": {
             "id": task["id"],
@@ -885,6 +1021,26 @@ def start_or_continue_task(cfg: Config, task_id: int) -> dict[str, Any]:
             "requires_approval": bool(current_step["requires_approval"]),
         },
     }
+
+    if sub_wf_id:
+        result["sub_workflow"] = {
+            "workflow_id": sub_wf_id,
+            "workflow_name": sub_wf_name,
+            "playbook": sub_wf_playbook,
+        }
+        result["instruction"] = (
+            f"This step is a sub-workflow step. You must spin up a fresh sub-agent to handle it.\n\n"
+            f"Sub-workflow: \"{sub_wf_name}\" (workflow_id: {sub_wf_id})\n\n"
+            f"Sub-workflow playbook:\n{sub_wf_playbook}\n\n"
+            f"Instructions:\n"
+            f"1. Launch a new sub-agent (e.g. via the Task tool).\n"
+            f"2. Pass it: task_id={task_id}, and instruct it to call start_or_continue_task({task_id}) "
+            f"to begin working through the sub-workflow steps.\n"
+            f"3. The sub-agent must call finish_step after each sub-workflow step completes.\n"
+            f"4. When the sub-agent signals it is done (all sub-workflow steps complete), "
+            f"call finish_step({task_id}, output=<sub_agent_summary_output>) to advance the parent task."
+        )
+
     if task.get("progress_notes"):
         result["progress_notes"] = task["progress_notes"]
     return result
@@ -965,18 +1121,63 @@ def submit_output(
         next_step = _resolve_next_step(conn, current_step["id"], output)
 
         if next_step is None:
-            # Terminal step — task is done
-            conn.execute(
-                sa.update(tasks)
-                .where(tasks.c.id == task_id)
-                .values(status="done", current_step_id=None, progress_notes=None)
-            )
-            return {"status": "done"}
+            # Check if this was a sub-workflow step — if so, continue in parent
+            parent_step_id = current_si.get("sub_workflow_step_id")
+            if parent_step_id:
+                # Sub-workflow is done — resolve the next step in the parent workflow
+                next_step = _resolve_next_step(conn, parent_step_id, output)
+                if next_step is None:
+                    # Parent workflow is also terminal
+                    conn.execute(
+                        sa.update(tasks)
+                        .where(tasks.c.id == task_id)
+                        .values(status="done", current_step_id=None, progress_notes=None)
+                    )
+                    return {"status": "done"}
+                # Continue in parent workflow — fall through to the next-step activation below
+                # (next_step is already set)
+            else:
+                # Terminal step at top level — task is done
+                conn.execute(
+                    sa.update(tasks)
+                    .where(tasks.c.id == task_id)
+                    .values(status="done", current_step_id=None, progress_notes=None)
+                )
+                return {"status": "done"}
 
         # Pass the current step's output as the next step's input
         next_input_data = {
             "value": output if isinstance(output, str) else output.get("value", output),
         }
+
+        # Clear progress notes on advance
+        conn.execute(
+            sa.update(tasks).where(tasks.c.id == task_id).values(progress_notes=None)
+        )
+
+        # If the next step is a sub-workflow step, expand it
+        next_sub_wf_id = next_step.get("sub_workflow_id")
+        if next_sub_wf_id:
+            sub_wf_row = conn.execute(
+                sa.select(workflows.c.name, workflows.c.playbook).where(workflows.c.id == next_sub_wf_id)
+            ).mappings().one()
+            _expand_sub_workflow(conn, task_id, next_sub_wf_id, next_step["id"], next_input_data)
+            return {
+                "status": "in_progress",
+                "next_step": {
+                    "name": next_step["name"],
+                    "input_data": next_input_data,
+                    "is_sub_workflow": True,
+                    "sub_workflow": {
+                        "workflow_id": next_sub_wf_id,
+                        "workflow_name": sub_wf_row["name"],
+                        "playbook": sub_wf_row["playbook"],
+                    },
+                },
+            }
+
+        # Propagate sub_workflow_step_id if we're still inside a sub-workflow
+        inherited_sub_wf_step_id = current_si.get("sub_workflow_step_id")
 
         # Activate next step (create instance + update task pointer)
         conn.execute(
@@ -985,12 +1186,13 @@ def submit_output(
                 step_id=next_step["id"],
                 status="active",
                 input_data=next_input_data,
+                sub_workflow_step_id=inherited_sub_wf_step_id,
             )
         )
         conn.execute(
             sa.update(tasks)
             .where(tasks.c.id == task_id)
-            .values(current_step_id=next_step["id"], progress_notes=None)
+            .values(current_step_id=next_step["id"])
         )
 
         pb = conn.execute(
@@ -1055,16 +1257,29 @@ def get_workflow_with_playbooks(cfg: Config, workflow_id: int) -> dict[str, Any]
 
     playbook_by_step = {pb["step_id"]: pb["content"] for pb in pb_rows}
 
+    # Fetch sub-workflow names for steps that reference them
+    sub_wf_ids = [s["sub_workflow_id"] for s in step_rows if s.get("sub_workflow_id")]
+    sub_wf_names: dict[int, str] = {}
+    if sub_wf_ids:
+        with engine.connect() as conn2:
+            name_rows = conn2.execute(
+                sa.select(workflows.c.id, workflows.c.name).where(workflows.c.id.in_(sub_wf_ids))
+            ).mappings().all()
+            sub_wf_names = {r["id"]: r["name"] for r in name_rows}
+
     return {
         "id": wf["id"],
         "name": wf["name"],
         "description": wf["description"],
+        "playbook": wf["playbook"],
         "steps": [
             {
                 "id": s["id"],
                 "order": s["order"],
                 "name": s["name"],
                 "playbook": playbook_by_step.get(s["id"]),
+                "sub_workflow_id": s.get("sub_workflow_id"),
+                "sub_workflow_name": sub_wf_names.get(s["sub_workflow_id"]) if s.get("sub_workflow_id") else None,
             }
             for s in step_rows
         ],
@@ -1188,6 +1403,19 @@ def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, An
         if e["from_step_id"] == step_id
     ]
 
+    sub_wf_name: str | None = None
+    sub_wf_playbook: str | None = None
+    if step["sub_workflow_id"]:
+        with engine.connect() as conn2:
+            row = conn2.execute(
+                sa.select(workflows.c.name, workflows.c.playbook).where(
+                    workflows.c.id == step["sub_workflow_id"]
+                )
+            ).mappings().one_or_none()
+            if row:
+                sub_wf_name = row["name"]
+                sub_wf_playbook = row["playbook"]
+
     return {
         "workflow": {"id": wf["id"], "name": wf["name"]},
         "step": {
@@ -1196,6 +1424,9 @@ def get_step_detail(cfg: Config, workflow_id: int, step_id: int) -> dict[str, An
             "name": step["name"],
             "playbook": pb,
             "library_entry_id": step["library_entry_id"],
+            "sub_workflow_id": step["sub_workflow_id"],
+            "sub_workflow_name": sub_wf_name,
+            "sub_workflow_playbook": sub_wf_playbook,
         },
         "prev_steps": prev_steps,
         "next_steps": next_steps,
@@ -1237,24 +1468,37 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
                 sa.select(steps.c.name).where(steps.c.id == task["current_step_id"])
             ).scalar()
 
-        # Step-instance history (most recent first via id desc)
+        # Alias for the sub-workflow parent step name lookup
+        parent_steps = steps.alias("parent_steps")
+        parent_wf = workflows.alias("parent_wf")
+
+        # Step-instance history with sub-workflow provenance
         si_rows = (
             conn.execute(
                 sa.select(
                     step_instances.c.id,
                     step_instances.c.step_id,
+                    step_instances.c.sub_workflow_step_id,
                     step_instances.c.status,
                     step_instances.c.input_data,
                     step_instances.c.output,
                     step_instances.c.completed_at,
                     sa.func.coalesce(steps.c.name, "Adhoc step").label("step_name"),
+                    # Name of the parent step that triggered sub-workflow expansion
+                    parent_steps.c.name.label("sub_workflow_step_name"),
+                    # ID and name of the sub-workflow workflow itself
+                    parent_wf.c.id.label("sub_workflow_id"),
+                    parent_wf.c.name.label("sub_workflow_name"),
                 )
                 .select_from(
-                    step_instances.outerjoin(steps, steps.c.id == step_instances.c.step_id)
+                    step_instances
+                    .outerjoin(steps, steps.c.id == step_instances.c.step_id)
+                    .outerjoin(parent_steps, parent_steps.c.id == step_instances.c.sub_workflow_step_id)
+                    .outerjoin(parent_wf, parent_wf.c.id == parent_steps.c.sub_workflow_id)
                 )
                 .where(step_instances.c.task_id == task_id)
                 .order_by(
-                    # Active instance floats to top, then newest first
+                    # Active instance floats to top, then chronological by id
                     sa.case((step_instances.c.status == "active", 0), else_=1),
                     step_instances.c.id.desc(),
                 )
@@ -1281,6 +1525,10 @@ def get_task_detail(cfg: Config, task_id: int) -> dict[str, Any]:
                 "id": si["id"],
                 "step_id": si["step_id"],
                 "step_name": si["step_name"],
+                "sub_workflow_step_id": si["sub_workflow_step_id"],
+                "sub_workflow_step_name": si["sub_workflow_step_name"],
+                "sub_workflow_id": si["sub_workflow_id"],
+                "sub_workflow_name": si["sub_workflow_name"],
                 "status": si["status"],
                 "input_data": si["input_data"],
                 "output": si["output"],

@@ -20,6 +20,7 @@ workflows = sa.Table(
     sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
     sa.Column("name", sa.String(255), nullable=False),
     sa.Column("description", sa.Text),
+    sa.Column("playbook", sa.Text, nullable=True),
     sa.Column("created_at", sa.DateTime, server_default=sa.func.now(), nullable=False),
 )
 
@@ -43,6 +44,14 @@ steps = sa.Table(
         "library_entry_id",
         sa.Integer,
         sa.ForeignKey("library_entries.id", ondelete="SET NULL"),
+        nullable=True,
+    ),
+    # When set, this step runs an entire sub-workflow instead of a playbook.
+    # ON DELETE RESTRICT prevents deleting a workflow that is used as a sub-workflow step.
+    sa.Column(
+        "sub_workflow_id",
+        sa.Integer,
+        sa.ForeignKey("workflows.id", ondelete="RESTRICT"),
         nullable=True,
     ),
 )
@@ -135,4 +144,12 @@ step_instances = sa.Table(
     sa.Column("input_data", sa.JSON),
     sa.Column("output", sa.JSON),
     sa.Column("completed_at", sa.DateTime),
+    # When set, this instance was created as part of a sub-workflow expansion.
+    # Points to the step in the parent workflow that triggered the expansion.
+    sa.Column(
+        "sub_workflow_step_id",
+        sa.Integer,
+        sa.ForeignKey("steps.id"),
+        nullable=True,
+    ),
 )
