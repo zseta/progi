@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0](https://github.com/zseta/progi/compare/v0.3.2...v0.4.0) (2026-06-27)
+
+
+### Features
+
+* add adhoc step tool ([b43f93f](https://github.com/zseta/progi/commit/b43f93f289ddcfbd2bb17a85f39cbc959729ffeb))
+* add parallel execution support for workflow steps (UI-only) ([#36](https://github.com/zseta/progi/issues/36)) ([82753f9](https://github.com/zseta/progi/commit/82753f92c2440e66bcb331445053efd84cd05746))
+* add Playbook library ([#26](https://github.com/zseta/progi/issues/26)) ([1cd6842](https://github.com/zseta/progi/commit/1cd684282443a3ab3bc950f116638b2d470e66e5))
+* add rename workflow button ([#22](https://github.com/zseta/progi/issues/22)) ([125fc6f](https://github.com/zseta/progi/commit/125fc6f43570a034160bc04086055d9b571f4668))
+* Add support for looping workflows ([#23](https://github.com/zseta/progi/issues/23)) ([1804e91](https://github.com/zseta/progi/commit/1804e91aa6001ad17269ec809fb65d12a0220e51))
+* add tools for managing workflow steps (add, edit, delete) ([8998cad](https://github.com/zseta/progi/commit/8998cad3e01dac758be505ef68848f903250613f))
+* Board view updates ([#25](https://github.com/zseta/progi/issues/25)) ([becd27b](https://github.com/zseta/progi/commit/becd27b7cf08723bf286371469f6510f453f2666))
+* copy button on library playbook card ([75fa634](https://github.com/zseta/progi/commit/75fa634fd2e1f28b1fc68d5ba5613350c1c91c3d))
+* delete task ([cd3207d](https://github.com/zseta/progi/commit/cd3207d02c15a94b6780edee4e4325d4dc271faf))
+* exportable workflow, remove update tool ([fd1d93d](https://github.com/zseta/progi/commit/fd1d93d404fbda839eaa1a2bb17c9af14ffed666))
+* new tool for adhoc requests related to a task, even after completion ([dab9b9d](https://github.com/zseta/progi/commit/dab9b9df42197a22742e045aa06cfff07b8e98a6))
+* remove specs and standardize playbooks ([#35](https://github.com/zseta/progi/issues/35)) ([b8f2cb4](https://github.com/zseta/progi/commit/b8f2cb46df3cda68e525a728267037b507b00aee))
+
+
+### Bug Fixes
+
+* add logo ([f5f29d9](https://github.com/zseta/progi/commit/f5f29d9c3941519d4d605a1c1b6dc9700931a222))
+* add status filter ([73fd1a5](https://github.com/zseta/progi/commit/73fd1a5e98167d22e7d2f965a82c086d84eb839b))
+* don't show progress notes on board view ([#19](https://github.com/zseta/progi/issues/19)) ([0720fa3](https://github.com/zseta/progi/commit/0720fa350f5c9e5e5b94ea307dd7968cbae7850b))
+* font size (was too small) ([#27](https://github.com/zseta/progi/issues/27)) ([d5efa81](https://github.com/zseta/progi/commit/d5efa81a13b271ab6ce186b648d4ba177f897206))
+* handle missing description in task input specification ([869dc8f](https://github.com/zseta/progi/commit/869dc8fe6c80c516fa00b0c517ea5e1edf7d8cd7))
+* none edge by LLM ([a59213a](https://github.com/zseta/progi/commit/a59213aa4c023618b767b673460c09409e93d9a5))
+* Penguin UI style fixes ([#28](https://github.com/zseta/progi/issues/28)) ([a1af7b7](https://github.com/zseta/progi/commit/a1af7b7e1a6def36ee45d64252b3f6d04b902c19))
+* progress notes layout ([#24](https://github.com/zseta/progi/issues/24)) ([a301c51](https://github.com/zseta/progi/commit/a301c51b4bf1ad15e4e682afb4a4324769323d08))
+* remove duplicated content in output ([82670cc](https://github.com/zseta/progi/commit/82670cc2cf77249466ffd6135ca3ce92f17d28e2))
+* tighten MCP tool output hints ([#18](https://github.com/zseta/progi/issues/18)) ([3fdcfc9](https://github.com/zseta/progi/commit/3fdcfc92d43d87e5d1f173d4dccfd300d569a22f))
+
 ## [0.3.2](https://github.com/zseta/progi/compare/v0.3.1...v0.3.2) (2026-06-16)
 
 
