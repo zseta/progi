@@ -84,13 +84,9 @@ def start_or_continue_task(task_id: int) -> dict:
     - todo        → starts the task (todo → in_progress) and returns step context.
     - in_progress → returns step context so the agent can resume.
 
-    Context includes task info, the current step name + position, input_data,
-    output_spec (the expected format/type of the deliverable), the playbook
-    markdown, and progress_notes (if any).
-
-    Before calling finish_step, verify that your output satisfies output_spec
-    (correct type, meets constraints, includes any fields referenced by branching
-    conditions).
+    Context includes task info, the current step name, input_data, the playbook
+    markdown, and progress_notes (if any). Follow the playbook's Output section
+    for what to produce and how to report it back.
 
     Always show the user the monitoring_url from the response.
     """
@@ -199,7 +195,7 @@ def get_process_skeleton_prompt() -> str:
 
     The returned prompt covers both passes:
     - Pass 1: work with the user to produce and approve a skeleton JSON
-      (steps with input/output specs).
+      (workflow name, description, steps, and edges).
     - Pass 2: once the user approves, generate all step playbooks silently
       (no further tool calls needed) and call save_workflow with everything.
     """
@@ -241,7 +237,7 @@ def list_workflows() -> dict:
 
 @mcp.tool(title="Get Workflow")
 def get_workflow(workflow_id: int) -> dict:
-    """Return a workflow's full detail: steps (with order, specs, playbook) and edges.
+    """Return a workflow's full detail: steps (with order, playbook) and edges.
 
     Use this as a read step before calling add_step, edit_step, or delete_step
     so you have the current step IDs, order values, and playbook content.
@@ -256,8 +252,6 @@ def add_step(
     workflow_id: int,
     name: str,
     order: int,
-    input_spec: dict,
-    output_spec: dict,
     playbook: str = "",
     requires_approval: bool = False,
     reorder: bool = True,
@@ -285,8 +279,6 @@ def add_step(
         workflow_id=workflow_id,
         name=name,
         order=order,
-        input_spec=input_spec,
-        output_spec=output_spec,
         playbook=playbook or None,
         requires_approval=requires_approval,
         reorder=reorder,
@@ -297,8 +289,6 @@ def add_step(
 def edit_step(
     step_id: int,
     name: str | None = None,
-    input_spec: dict | None = None,
-    output_spec: dict | None = None,
     playbook: str | None = None,
     requires_approval: bool | None = None,
 ) -> dict:
@@ -321,8 +311,6 @@ def edit_step(
         _cfg,
         step_id,
         name=name,
-        input_spec=input_spec,
-        output_spec=output_spec,
         requires_approval=requires_approval,
     )
     updated_playbook = None

@@ -394,15 +394,13 @@ function stepDetail() {
     workflowId: null,
     stepId: null,
     stepName: '',
-    inputSpec: null,
-    outputSpec: null,
     playbook: '',
     prevSteps: [],
     nextSteps: [],
     libraryEntryId: null,
-    editing: { input_spec: false, output_spec: false, playbook: false },
-    drafts:  { input_spec: '',    output_spec: '',    playbook: ''    },
-    errors:  { input_spec: '',    output_spec: ''                     },
+    editing: { playbook: false },
+    drafts:  { playbook: '' },
+    errors:  {},
 
     init() {
       const data = JSON.parse(document.getElementById('step-detail-data').textContent);
@@ -421,17 +419,7 @@ function stepDetail() {
     },
 
     async saveEdit(field) {
-      const body = {};
-      if (field === 'playbook') {
-        body.playbook = this.drafts.playbook;
-      } else {
-        try {
-          body[field] = JSON.parse(this.drafts[field]);
-        } catch {
-          this.errors[field] = 'Invalid JSON';
-          return;
-        }
-      }
+      const body = { [field]: this.drafts[field] };
 
       const resp = await fetch(`/workflows/${this.workflowId}/steps/${this.stepId}`, {
         method: 'PATCH',
@@ -440,12 +428,8 @@ function stepDetail() {
       });
 
       if (resp.ok) {
-        // Persist new value locally
-        if (field === 'input_spec')  this.inputSpec  = body.input_spec;
-        if (field === 'output_spec') this.outputSpec = body.output_spec;
-        if (field === 'playbook')    this.playbook   = body.playbook;
+        if (field === 'playbook') this.playbook = body.playbook;
         this.editing[field] = false;
-        this.errors[field]  = '';
       }
     },
 

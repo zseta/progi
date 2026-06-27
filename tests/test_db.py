@@ -105,22 +105,8 @@ def test_authoring_roundtrip(monkeypatch):
             "name": "Tiny",
             "description": "two-step workflow",
             "process": [
-                {
-                    "order": 1,
-                    "name": "A",
-                    "input_spec": {"description": "start", "source": "static"},
-                    "output_spec": {"type": "text", "description": "out", "constraints": ""},
-                },
-                {
-                    "order": 2,
-                    "name": "B",
-                    "input_spec": {
-                        "description": "from A",
-                        "source": "previous_step_output",
-                        "from_step": "A",
-                    },
-                    "output_spec": {"type": "text", "description": "out", "constraints": ""},
-                },
+                {"order": 1, "name": "A"},
+                {"order": 2, "name": "B"},
             ],
         }
         wf = db.save_workflow(cfg, skeleton, {"A": "playbook A", "B": "playbook B"})
@@ -152,9 +138,9 @@ def test_save_workflow_without_edges_creates_linear(monkeypatch):
             "name": "Linear",
             "description": "three steps, no edges key",
             "process": [
-                {"order": 1, "name": "A", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
-                {"order": 2, "name": "B", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
-                {"order": 3, "name": "C", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
+                {"order": 1, "name": "A"},
+                {"order": 2, "name": "B"},
+                {"order": 3, "name": "C"},
             ],
         }
         wf = db.save_workflow(cfg, skeleton, {})
@@ -237,8 +223,8 @@ def test_no_matching_condition_raises(monkeypatch):
             "name": "Strict",
             "description": "conditional edge, no fallback",
             "process": [
-                {"order": 1, "name": "A", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
-                {"order": 2, "name": "B", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
+                {"order": 1, "name": "A"},
+                {"order": 2, "name": "B"},
             ],
             "edges": [
                 {"from": "A", "to": "B", "condition": {"field": "go", "operator": "eq", "value": True}, "priority": 0},
@@ -263,7 +249,7 @@ def test_delete_workflow(monkeypatch):
             "name": "Disposable",
             "description": "will be deleted",
             "process": [
-                {"order": 1, "name": "Only", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
+                {"order": 1, "name": "Only"},
             ],
         }
         wf = db.save_workflow(cfg, skeleton, {})
@@ -320,22 +306,14 @@ def test_update_step(monkeypatch):
             "name": "Edit me",
             "description": "one step",
             "process": [
-                {"order": 1, "name": "Alpha", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
+                {"order": 1, "name": "Alpha"},
             ],
         }
         wf = db.save_workflow(cfg, skeleton, {})
         step_id = wf["steps"][0]["id"]
 
-        updated = db.update_step(
-            cfg,
-            step_id,
-            name="Alpha Renamed",
-            input_spec={"source": "static", "description": "updated"},
-        )
+        updated = db.update_step(cfg, step_id, name="Alpha Renamed")
         assert updated["name"] == "Alpha Renamed"
-        assert updated["input_spec"]["description"] == "updated"
-        # output_spec unchanged
-        assert updated["output_spec"]["type"] == "text"
 
 
 def test_board_tasks(monkeypatch):
@@ -357,7 +335,7 @@ def _make_one_step_workflow(db, cfg, name="Lib Test", playbook_content="# My Pla
         "name": name,
         "description": "for library tests",
         "process": [
-            {"order": 1, "name": "Only", "input_spec": {"source": "static", "description": "x"}, "output_spec": {"type": "text", "description": "x", "constraints": ""}},
+            {"order": 1, "name": "Only"},
         ],
     }
     wf = db.save_workflow(cfg, skeleton, {"Only": playbook_content})

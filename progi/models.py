@@ -3,7 +3,7 @@
 This module is the single source of truth for the schema. It is imported by
 ``db.py`` (queries/mutations) and by Alembic (autogenerate migrations).
 
-``input_spec`` / ``output_spec`` / ``input_data`` / ``output`` are JSON columns:
+``input_data`` / ``output`` are JSON columns on step_instances:
 SQLAlchemy serialises dicts to TEXT on write and parses them back on read, so
 the Python side always deals in plain dicts (no manual json.dumps/loads).
 """
@@ -36,8 +36,6 @@ steps = sa.Table(
     # "order" is a SQL keyword; SQLAlchemy quotes it automatically.
     sa.Column("order", sa.Integer, nullable=False),
     sa.Column("name", sa.String(255), nullable=False),
-    sa.Column("input_spec", sa.JSON, nullable=False),
-    sa.Column("output_spec", sa.JSON, nullable=False),
     # When True, the agent must present the step output to the user and get
     # explicit approval before calling finish_step.
     sa.Column("requires_approval", sa.Boolean, nullable=False, server_default="0"),

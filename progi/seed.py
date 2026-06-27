@@ -14,208 +14,113 @@ BLOG_POST_SKELETON: dict = {
     "name": "Blog Post",
     "description": "Workflow for researching, writing, editing, and publishing a blog post.",
     "process": [
-        {
-            "order": 1,
-            "name": "Research",
-            "input_spec": {
-                "description": "Topic name and any initial notes or reference links the user supplies.",
-                "source": "static",
-                "from_step": None,
-            },
-            "output_spec": {
-                "type": "file",
-                "description": "Research notes covering key points, credible sources, and angles for the post.",
-                "constraints": "must be a markdown file",
-            },
-        },
-        {
-            "order": 2,
-            "name": "Outline",
-            "input_spec": {
-                "description": "Research notes from the Research step.",
-                "source": "previous_step_output",
-                "from_step": "Research",
-            },
-            "output_spec": {
-                "type": "file",
-                "description": "Structured outline with headings and key bullet points per section.",
-                "constraints": "must be a markdown file",
-            },
-        },
-        {
-            "order": 3,
-            "name": "Draft",
-            "input_spec": {
-                "description": "Approved outline from the Outline step.",
-                "source": "previous_step_output",
-                "from_step": "Outline",
-            },
-            "output_spec": {
-                "type": "file",
-                "description": "Full first draft of the blog post.",
-                "constraints": "must be a markdown file",
-            },
-        },
-        {
-            "order": 4,
-            "name": "Edit",
-            "input_spec": {
-                "description": "First draft from the Draft step.",
-                "source": "previous_step_output",
-                "from_step": "Draft",
-            },
-            "output_spec": {
-                "type": "file",
-                "description": "Edited, publish-ready version of the post.",
-                "constraints": "must be a markdown file",
-            },
-        },
-        {
-            "order": 5,
-            "name": "Publish",
-            "input_spec": {
-                "description": "Final edited post from the Edit step.",
-                "source": "previous_step_output",
-                "from_step": "Edit",
-            },
-            "output_spec": {
-                "type": "url",
-                "description": "Link to the live published post.",
-                "constraints": "must be a valid URL",
-            },
-        },
+        {"order": 1, "name": "Research"},
+        {"order": 2, "name": "Outline"},
+        {"order": 3, "name": "Draft"},
+        {"order": 4, "name": "Edit"},
+        {"order": 5, "name": "Publish"},
     ],
 }
 
 PLAYBOOKS: dict[str, str] = {
-    "Research": """# Step: Research
+    "Research": """## Input
 
-You are working on the **Research** step of a Blog Post task.
-Your goal is to gather enough information on the topic to write a well-informed post.
+`input_data.value` — the topic and any initial notes the user provided when creating the task.
 
-## Input
-
-The topic name (and any initial notes) were provided when the task was created.
-Ask the user for the topic and any seed links or constraints before proceeding if they are not already clear.
-
-## Working instructions
+## Instructions
 
 1. Ask the user: "What is the exact topic and target audience? Do you have any reference links or key points you want included?"
 2. Wait for the user's reply.
 3. Gather information from the provided links plus your own knowledge. Identify 5-8 key points or angles most relevant to the target audience.
 4. Assess source credibility; note any conflicting information.
+5. Save research notes to `research.md`. The file must list the main talking points with short explanations, cite sources with URLs where applicable, and note any open questions or gaps.
+
+## Human involvement
+
+None required beyond the initial clarification in step 1.
 
 ## Output
 
-Save your research notes to `research.md` in the working directory. The file must:
-- List the main talking points with short explanations.
-- Cite sources with URLs where applicable.
-- Note any open questions or gaps.
+`research.md` in the working directory. Report back that it is ready once saved.""",
+    "Outline": """## Input
 
-Report back that `research.md` is ready once saved.""",
-    "Outline": """# Step: Outline
+`input_data.value` — the file path to the research notes from the previous step (typically `research.md`).
 
-You are working on the **Outline** step of a Blog Post task.
-Your goal is to turn the research notes into a clear, logical structure for the post.
+## Instructions
 
-## Input
+1. Ask the user: "What is the desired post length (short ~500 w, medium ~1000 w, long ~2000 w)? Any sections that must or must not be included?" Wait for their reply.
+2. Read `research.md` fully.
+3. Group related points into 3-6 sections.
+4. Order sections for logical flow (context → problem → solution → conclusion, or similar).
+5. Write a one-sentence summary of each section.
+6. Save the outline to `outline.md` and present it to the user.
 
-The research notes from the previous step are available as `research.md` in the working directory.
+## Human involvement
 
-## Before you start
-
-Ask the user:
-- What is the desired post length (short ~500 w, medium ~1000 w, long ~2000 w)?
-- Any sections that must or must not be included?
-
-Wait for the user's reply before proceeding.
-
-## Working instructions
-
-1. Read `research.md` fully.
-2. Group related points into 3-6 sections.
-3. Order sections for logical flow (context → problem → solution → conclusion, or similar).
-4. Write a one-sentence summary of each section.
+The user must approve the outline structure before the step is complete. Ask: "Does this structure look right, or would you like to move/remove/add any sections?" Iterate until the user approves.
 
 ## Output
 
-Save the outline to `outline.md`. Present it to the user and ask:
-"Does this structure look right, or would you like to move/remove/add any sections?"
-Iterate until the user approves, then report that `outline.md` is ready.""",
-    "Draft": """# Step: Draft
+`outline.md` — the approved outline. Report that it is ready once the user approves.""",
+    "Draft": """## Input
 
-You are working on the **Draft** step of a Blog Post task.
-Your goal is to turn the approved outline into a full first draft.
+`input_data.value` — the file path to the approved outline from the previous step (typically `outline.md`).
 
-## Input
+## Instructions
 
-The approved outline is available as `outline.md` in the working directory.
+1. Ask the user in one message: "What tone should the post have (casual, technical, formal)? Any specific phrasing or terminology to use or avoid?" Wait for their reply.
+2. Follow the outline's section structure exactly.
+3. Write full prose for each section — vary sentence length, avoid filler phrases.
+4. Include a working title and a short intro paragraph.
+5. Aim for the length implied by the Outline step's approved scope.
+6. Write the full draft autonomously with no mid-draft check-ins.
+7. Save the draft to `draft.md`.
 
-## Before you start
+## Human involvement
 
-Ask the user in one message:
-- What tone should the post have (casual, technical, formal)?
-- Any specific phrasing or terminology to use or avoid?
-
-Wait for their reply before writing.
-
-## Working instructions
-
-1. Follow the outline's section structure exactly.
-2. Write full prose for each section—vary sentence length, avoid filler phrases.
-3. Include a working title and a short intro paragraph.
-4. Aim for the length implied by the Outline step's approved scope.
-5. No mid-draft check-ins—write the full draft autonomously based on the instructions above.
+One upfront question (tone/terminology) before writing. No approval needed at this stage — review happens in the Edit step.
 
 ## Output
 
-Save the draft to `draft.md`. Report that it is ready; no further approval is needed at this stage (that happens in Edit).""",
-    "Edit": """# Step: Edit
+`draft.md` — the first draft. Report that it is ready.""",
+    "Edit": """## Input
 
-You are working on the **Edit** step of a Blog Post task.
-Your goal is to turn the first draft into a publish-ready post.
+`input_data.value` — the file path to the first draft from the previous step (typically `draft.md`).
 
-## Input
-
-The first draft is available as `draft.md` in the working directory.
-
-## Working instructions
+## Instructions
 
 1. Read the draft end-to-end before making any changes.
 2. Fix grammar, punctuation, and spelling errors.
 3. Improve sentence flow: split run-ons, vary structure, remove redundancy.
 4. Verify the opening paragraph hooks the reader and the conclusion is clear.
 5. Ensure headings are consistent and match the outline.
-6. No mid-edit check-ins needed—edit autonomously.
+6. Edit autonomously with no mid-edit check-ins.
+7. Present the revised post to the user.
 
-## Human review
+## Human involvement
 
-After editing, present the revised post to the user and ask:
-"Here is the edited draft. Does it read well, or are there any sections you would like adjusted?"
-Iterate until the user approves.
+The user must approve the edited post before the step is complete. Ask: "Here is the edited draft. Does it read well, or are there any sections you would like adjusted?" Iterate until the user approves.
 
 ## Output
 
-Save the final approved version to `edited_post.md` and report it is ready.""",
-    "Publish": """# Step: Publish
+`edited_post.md` — the final approved post. Report that it is ready once the user approves.""",
+    "Publish": """## Input
 
-You are working on the **Publish** step of a Blog Post task.
-Your goal is to get the edited post live and capture its URL.
+`input_data.value` — the file path to the final edited post from the previous step (typically `edited_post.md`).
 
-## Input
-
-The final edited post is available as `edited_post.md` in the working directory.
-
-## Working instructions
+## Instructions
 
 1. Ask the user: "Where should this post be published (CMS name / URL, or shall I walk you through it)?"
-2. Follow the user's publishing workflow—copy/paste content, set metadata (title, tags, publish date) as directed.
+2. Follow the user's publishing workflow — copy/paste content, set metadata (title, tags, publish date) as directed.
 3. Confirm with the user once the post is live.
+
+## Human involvement
+
+The user must provide the publishing destination and confirm the post is live. Ask them to confirm the public URL once published.
 
 ## Output
 
-Once the post is live, ask the user to confirm the public URL.
-Report the URL back—this is the step's deliverable.""",
+The public URL of the published post. Report it back — this is the step's deliverable.""",
 }
 
 
@@ -226,62 +131,10 @@ CONTENT_REVIEW_SKELETON: dict = {
         "or deep-edit before publishing."
     ),
     "process": [
-        {
-            "order": 1,
-            "name": "Draft",
-            "input_spec": {
-                "description": "Topic and any initial notes.",
-                "source": "static",
-                "from_step": None,
-            },
-            "output_spec": {
-                "type": "file",
-                "description": "Draft document plus a boolean review_needed field.",
-                "constraints": "markdown file; output dict must include review_needed (bool)",
-            },
-        },
-        {
-            "order": 2,
-            "name": "Quick Publish",
-            "input_spec": {
-                "description": "Draft from the Draft step.",
-                "source": "previous_step_output",
-                "from_step": "Draft",
-            },
-            "output_spec": {
-                "type": "url",
-                "description": "Published URL (no review required).",
-                "constraints": "valid URL",
-            },
-        },
-        {
-            "order": 3,
-            "name": "Deep Edit",
-            "input_spec": {
-                "description": "Draft from the Draft step.",
-                "source": "previous_step_output",
-                "from_step": "Draft",
-            },
-            "output_spec": {
-                "type": "file",
-                "description": "Edited, review-ready document.",
-                "constraints": "markdown file",
-            },
-        },
-        {
-            "order": 4,
-            "name": "Publish",
-            "input_spec": {
-                "description": "Edited document from the Deep Edit step.",
-                "source": "previous_step_output",
-                "from_step": "Deep Edit",
-            },
-            "output_spec": {
-                "type": "url",
-                "description": "Published URL.",
-                "constraints": "valid URL",
-            },
-        },
+        {"order": 1, "name": "Draft"},
+        {"order": 2, "name": "Quick Publish"},
+        {"order": 3, "name": "Deep Edit"},
+        {"order": 4, "name": "Publish"},
     ],
     # Draft branches: review_needed=False → Quick Publish (terminal),
     #                 review_needed=True  → Deep Edit → Publish (terminal)
@@ -309,10 +162,19 @@ CONTENT_REVIEW_SKELETON: dict = {
 }
 
 CONTENT_REVIEW_PLAYBOOKS: dict[str, str] = {
-    "Draft": """# Step: Draft
+    "Draft": """## Input
 
-Write a draft on the given topic. At the end, decide whether the content
-needs editorial review before publishing.
+`input_data.value` — the topic and any initial notes the user provided when creating the task.
+
+## Instructions
+
+1. Write a draft on the given topic.
+2. At the end, decide whether the content needs editorial review before publishing.
+3. Save the draft to `draft.md`.
+
+## Human involvement
+
+None required unless the topic is ambiguous — ask for clarification upfront if needed.
 
 ## Output
 
@@ -320,37 +182,52 @@ Submit a dict with:
 - `value`: path to the draft file (e.g. `draft.md`)
 - `review_needed`: `true` if editorial review is required, `false` to fast-track
 """,
-    "Quick Publish": """# Step: Quick Publish
+    "Quick Publish": """## Input
 
-Publish the draft directly (no review required).
+`input_data.value` — the draft file path.
 
-## Input
+## Instructions
 
-The draft file path is in `input_data.value`.
+Publish the draft directly without editorial review.
+
+## Human involvement
+
+Ask the user for the publishing destination if not already known. Confirm the post is live before finishing.
 
 ## Output
 
 Submit `{"value": "<published-url>"}`.
 """,
-    "Deep Edit": """# Step: Deep Edit
+    "Deep Edit": """## Input
 
-Perform a thorough editorial review and polish of the draft.
+`input_data.value` — the draft file path.
 
-## Input
+## Instructions
 
-The draft file path is in `input_data.value`.
+1. Read the draft end-to-end.
+2. Fix grammar, punctuation, and spelling errors.
+3. Improve sentence flow and remove redundancy.
+4. Save the polished version to `edited.md`.
+
+## Human involvement
+
+None required — edit autonomously.
 
 ## Output
 
-Submit `{"value": "<edited-file-path>"}`.
+Submit `{"value": "edited.md"}`.
 """,
-    "Publish": """# Step: Publish
+    "Publish": """## Input
 
-Publish the edited document.
+`input_data.value` — the edited file path.
 
-## Input
+## Instructions
 
-The edited file path is in `input_data.value`.
+Publish the edited document to the target destination.
+
+## Human involvement
+
+Ask the user for the publishing destination if not already known. Confirm the post is live before finishing.
 
 ## Output
 
