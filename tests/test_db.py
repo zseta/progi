@@ -44,7 +44,7 @@ def test_full_work_loop(monkeypatch):
         ctx = db.start_or_continue_task(cfg, task_id)
         assert ctx["task"]["status"] == "in_progress"
         assert ctx["current_step"]["name"] == "Research"
-        assert ctx["current_step"]["playbook"].startswith("# Step: Research")
+        assert ctx["current_step"]["playbook"].startswith("## Input")
 
         # Advance through all 5 steps.
         step_names = ["Research", "Outline", "Draft", "Edit", "Publish"]
