@@ -239,6 +239,118 @@ def list_workflows() -> dict:
     return {"workflows": db.list_workflows(_cfg), "monitoring_url": _monitoring_url("/workflows")}
 
 
+@mcp.tool(title="Get Workflow")
+def get_workflow(workflow_id: int) -> dict:
+    """Return a workflow's full detail: steps (with order, specs, playbook) and edges.
+
+    Use this as a read step before calling add_step, edit_step, or delete_step
+    so you have the current step IDs, order values, and playbook content.
+    Do not surface the raw result to the user — the monitoring UI is the right
+    place for humans to inspect workflows.
+    """
+    return db.get_workflow_with_playbooks(_cfg, workflow_id)
+
+
+@mcp.tool(title="Add Step to Workflow")
+def add_step(
+    workflow_id: int,
+    name: str,
+    order: int,
+    input_spec: dict,
+    output_spec: dict,
+    playbook: str = "",
+    requires_approval: bool = False,
+    reorder: bool = True,
+) -> dict:
+    """Insert a new step into an existing workflow.
+
+    Intended usage:
+    1. Call get_workflow(workflow_id) to see current steps and their order values.
+    2. Choose an ``order`` value for the new step.
+       - If ``reorder=True`` (default) all existing steps with order >= the
+         chosen value are shifted up by 1, so the new step slots in cleanly.
+         Use this when inserting *between* two consecutive steps.
+       - If ``reorder=False`` supply an order value that is already in the gap
+         (e.g. between order 10 and 20 use 15).
+    3. Before calling this tool, show the user a plain-language preview of the
+       change — e.g. "I'll add a new step **Proofread** between **Write Draft**
+       and **Publish**." — and wait for their confirmation.
+    4. The function rewires edges so the new step is connected to its immediate
+       predecessor and successor by order.
+
+    Returns the newly created step dict.
+    """
+    return db.add_step_to_workflow(
+        _cfg,
+        workflow_id=workflow_id,
+        name=name,
+        order=order,
+        input_spec=input_spec,
+        output_spec=output_spec,
+        playbook=playbook or None,
+        requires_approval=requires_approval,
+        reorder=reorder,
+    )
+
+
+@mcp.tool(title="Edit Step")
+def edit_step(
+    step_id: int,
+    name: str | None = None,
+    input_spec: dict | None = None,
+    output_spec: dict | None = None,
+    playbook: str | None = None,
+    requires_approval: bool | None = None,
+) -> dict:
+    """Update any combination of fields on an existing step.
+
+    Only the fields you pass (non-None) are changed.  To update the playbook
+    pass ``playbook`` as a markdown string — it is upserted so it works whether
+    the step has a playbook already or not.
+
+    Intended usage:
+    1. Call get_workflow(workflow_id) to find the step ID and current values.
+    2. Before calling this tool, show the user a plain-language summary of what
+       will change — e.g. "I'll rename **Research** to **Background Research**
+       and update its playbook." — and wait for their confirmation.
+    3. Call edit_step with only the fields that need to change.
+
+    Returns a dict with the updated step and its current playbook.
+    """
+    updated_step = db.update_step(
+        _cfg,
+        step_id,
+        name=name,
+        input_spec=input_spec,
+        output_spec=output_spec,
+        requires_approval=requires_approval,
+    )
+    updated_playbook = None
+    if playbook is not None:
+        updated_playbook = db.update_playbook(_cfg, step_id, playbook)
+    return {"step": updated_step, "playbook": updated_playbook}
+
+
+@mcp.tool(title="Delete Step")
+def delete_step(step_id: int) -> dict:
+    """Remove a step from its workflow and reconnect surrounding edges.
+
+    Any edges pointing *to* the deleted step are re-targeted at the step's
+    successors, preserving linear connectivity.
+
+    Intended usage:
+    1. Call get_workflow(workflow_id) to confirm the step ID you want to remove.
+    2. Before calling this tool, tell the user clearly what will be deleted and
+       what the new step order will look like afterwards — e.g. "I'll remove
+       **QA Review**. The workflow will go directly from **Write Draft** to
+       **Publish**." — and wait for their confirmation.
+    3. Call delete_step(step_id).
+
+    Returns {"deleted_step_id": step_id, "ok": true}.
+    """
+    db.delete_step_from_workflow(_cfg, step_id)
+    return {"deleted_step_id": step_id, "ok": True}
+
 
 def run(cfg: Config | None = None, transport: str = "stdio", **transport_kwargs) -> None:
     """Run the MCP server. Blocks until the client disconnects (stdio) or killed (sse/http)."""

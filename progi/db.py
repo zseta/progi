@@ -443,6 +443,197 @@ def delete_workflow(cfg: Config, workflow_id: int) -> None:
             raise ValueError(f"Workflow {workflow_id} not found.")
 
 
+def add_step_to_workflow(
+    cfg: Config,
+    workflow_id: int,
+    name: str,
+    order: int,
+    input_spec: dict[str, Any],
+    output_spec: dict[str, Any],
+    playbook: str | None = None,
+    requires_approval: bool = False,
+    *,
+    reorder: bool = True,
+) -> dict[str, Any]:
+    """Insert a new step into an existing workflow at the given order position.
+
+    If ``reorder`` is True (default), all existing steps whose ``order`` >=
+    the requested ``order`` are incremented by 1 first, making room for the
+    new step.  Set ``reorder=False`` when you supply an order value that is
+    already a gap (e.g. inserting between order 10 and 20 at order 15).
+
+    After inserting the step this function also rewires the linear edges so
+    that the new step is connected to its immediate predecessor and successor
+    (by order).  Any existing direct edge between those two neighbours is
+    removed and replaced with predecessor → new step → successor edges.
+
+    Returns the new step dict (including its ``id``).
+    """
+    engine = get_engine(cfg)
+    with engine.begin() as conn:
+        wf = conn.execute(
+            sa.select(workflows.c.id).where(workflows.c.id == workflow_id)
+        ).first()
+        if wf is None:
+            raise ValueError(f"Workflow {workflow_id} not found.")
+
+        if reorder:
+            conn.execute(
+                sa.update(steps)
+                .where(steps.c.workflow_id == workflow_id, steps.c.order >= order)
+                .values(order=steps.c.order + 1)
+            )
+
+        step_id = conn.execute(
+            sa.insert(steps).values(
+                workflow_id=workflow_id,
+                order=order,
+                name=name,
+                input_spec=input_spec,
+                output_spec=output_spec,
+                requires_approval=requires_approval,
+            )
+        ).inserted_primary_key[0]
+
+        if playbook:
+            conn.execute(sa.insert(playbooks).values(step_id=step_id, content=playbook))
+
+        # Rewire edges: find predecessor and successor by order
+        ordered = (
+            conn.execute(
+                sa.select(steps.c.id, steps.c.order)
+                .where(steps.c.workflow_id == workflow_id)
+                .order_by(steps.c.order)
+            )
+            .mappings()
+            .all()
+        )
+        ids_by_order = {r["order"]: r["id"] for r in ordered}
+
+        prev_id: int | None = None
+        next_id: int | None = None
+        for r in ordered:
+            if r["order"] < order:
+                prev_id = r["id"]
+            elif r["order"] > order and next_id is None:
+                next_id = r["id"]
+
+        if prev_id is not None and next_id is not None:
+            # Remove any existing direct edge between prev and next
+            conn.execute(
+                sa.delete(step_edges).where(
+                    step_edges.c.workflow_id == workflow_id,
+                    step_edges.c.from_step_id == prev_id,
+                    step_edges.c.to_step_id == next_id,
+                )
+            )
+
+        if prev_id is not None:
+            conn.execute(
+                sa.insert(step_edges).values(
+                    workflow_id=workflow_id,
+                    from_step_id=prev_id,
+                    to_step_id=step_id,
+                    condition=None,
+                    priority=0,
+                )
+            )
+        if next_id is not None:
+            conn.execute(
+                sa.insert(step_edges).values(
+                    workflow_id=workflow_id,
+                    from_step_id=step_id,
+                    to_step_id=next_id,
+                    condition=None,
+                    priority=0,
+                )
+            )
+
+        row = conn.execute(sa.select(steps).where(steps.c.id == step_id)).mappings().one()
+    return dict(row)
+
+
+def delete_step_from_workflow(cfg: Config, step_id: int) -> None:
+    """Remove a step from its workflow and reconnect surrounding edges.
+
+    Any edge that pointed *to* the deleted step is re-targeted at the
+    step(s) the deleted step pointed *to*, preserving linear connectivity.
+    If the step has multiple successors (branching) each predecessor is
+    connected to each successor. Edges that directly connect two neighbours
+    that already have an edge are skipped to avoid duplicates.
+    """
+    engine = get_engine(cfg)
+    with engine.begin() as conn:
+        step_row = conn.execute(
+            sa.select(steps).where(steps.c.id == step_id)
+        ).mappings().one_or_none()
+        if step_row is None:
+            raise ValueError(f"Step {step_id} not found.")
+
+        workflow_id = step_row["workflow_id"]
+
+        # Gather predecessors and successors
+        in_edges = (
+            conn.execute(
+                sa.select(step_edges)
+                .where(
+                    step_edges.c.workflow_id == workflow_id,
+                    step_edges.c.to_step_id == step_id,
+                )
+            )
+            .mappings()
+            .all()
+        )
+        out_edges = (
+            conn.execute(
+                sa.select(step_edges)
+                .where(
+                    step_edges.c.workflow_id == workflow_id,
+                    step_edges.c.from_step_id == step_id,
+                )
+            )
+            .mappings()
+            .all()
+        )
+
+        predecessor_ids = [e["from_step_id"] for e in in_edges]
+        successor_ids = [e["to_step_id"] for e in out_edges]
+
+        # Remove all edges touching this step
+        conn.execute(
+            sa.delete(step_edges).where(
+                step_edges.c.workflow_id == workflow_id,
+                sa.or_(
+                    step_edges.c.from_step_id == step_id,
+                    step_edges.c.to_step_id == step_id,
+                ),
+            )
+        )
+
+        # Bridge predecessors directly to successors (skip if edge already exists)
+        existing_edges = set(
+            conn.execute(
+                sa.select(step_edges.c.from_step_id, step_edges.c.to_step_id)
+                .where(step_edges.c.workflow_id == workflow_id)
+            ).all()
+        )
+        for pred in predecessor_ids:
+            for succ in successor_ids:
+                if (pred, succ) not in existing_edges:
+                    conn.execute(
+                        sa.insert(step_edges).values(
+                            workflow_id=workflow_id,
+                            from_step_id=pred,
+                            to_step_id=succ,
+                            condition=None,
+                            priority=0,
+                        )
+                    )
+
+        # Delete the step (cascades playbook)
+        conn.execute(sa.delete(steps).where(steps.c.id == step_id))
+
+
 def update_workflow(cfg: Config, workflow_id: int, name: str) -> dict[str, Any]:
     """Rename a workflow and return the updated record."""
     engine = get_engine(cfg)
