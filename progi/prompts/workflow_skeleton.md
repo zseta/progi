@@ -42,6 +42,33 @@ Return exactly one JSON object of this shape:
 }
 ```
 
+### Sub-workflow steps
+
+A step can embed an entire existing workflow instead of having its own playbook.
+Use this when a well-defined workflow already exists and should run as a unit
+inside a larger workflow. In the skeleton, set `"sub_workflow_id"` to the
+referenced workflow's integer id, and omit that step from `playbooks_by_step`:
+
+```json
+{
+  "name": "Content Pipeline",
+  "description": "Full pipeline: brief → blog post → social promotion.",
+  "steps": [
+    {"order": 1, "name": "Write Brief"},
+    {"order": 2, "name": "Blog Post", "sub_workflow_id": 7},
+    {"order": 3, "name": "Promote on Social"}
+  ],
+  "edges": [
+    {"from": "Write Brief",        "to": "Blog Post",          "condition": null, "priority": 0},
+    {"from": "Blog Post",          "to": "Promote on Social",  "condition": null, "priority": 0}
+  ]
+}
+```
+
+The referenced workflow must have a workflow playbook defined (call
+`list_workflows()` to check — `playbook` will be non-null). If it does not,
+ask the user to add one via `edit_workflow_playbook` before proceeding.
+
 For a branching workflow, the edges express the routing logic:
 
 ```json
@@ -111,9 +138,10 @@ For a branching workflow, the edges express the routing logic:
 
 ## After the user approves the skeleton
 
-Once the user approves the skeleton JSON, generate all step playbooks silently
-(no user interaction needed for this — the Pass 2 instructions are below).
-Then call `save_workflow` with the skeleton and the completed playbooks map.
+Once the user approves the skeleton JSON, generate the workflow playbook and all
+step playbooks silently (no user interaction needed for this — the Pass 2
+instructions are below). Then call `save_workflow` with the skeleton, the
+completed playbooks map, and the workflow playbook.
 
 **Do not output the skeleton JSON to the user.** The JSON is an internal
 artifact for tool calls only. Acknowledge approval briefly, generate playbooks
@@ -123,14 +151,31 @@ silently, then call `save_workflow`.
 
 # Pass 2: Playbook Authoring
 
-You are authoring the **playbook** for each step of the workflow you just
-designed. A playbook is one self-contained markdown document that the AI
-**agent** (the assistant inside the user's harness — Claude Code, Cursor, etc.)
-will follow to perform that step at runtime.
+You are authoring playbooks for the workflow you just designed. There are two
+kinds of playbook to produce:
 
-For each step in the skeleton, write a playbook. Collect all playbooks into the
-`playbooks_by_step` map (step name → markdown string) and pass them to
+**1. Workflow playbook** — a short document describing the workflow as a whole.
+Pass this as the `workflow_playbook` argument to `save_workflow`. Required
+structure (three `##` sections, no `#` h1):
+
+```markdown
+## Purpose
+One or two sentences describing what this workflow accomplishes.
+
+## Input
+What data or context the workflow needs to start (format of `input_data.value`).
+
+## Output
+What the workflow produces when all steps complete (format + fields).
+```
+
+**2. Step playbooks** — one per regular step. Sub-workflow steps have no
+playbook (omit them from `playbooks_by_step`). Collect all step playbooks into
+the `playbooks_by_step` map (step name → markdown string) and pass them to
 `save_workflow`.
+
+Call `save_workflow(skeleton, playbooks_by_step, workflow_playbook)` with all
+three arguments once all playbooks are ready.
 
 ## Playbook structure
 

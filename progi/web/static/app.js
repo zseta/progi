@@ -50,6 +50,34 @@ function taskDetail() {
       this.stepInstances = data.stepInstances;
     },
 
+    get items() {
+      const reversed = [...this.stepInstances].reverse();
+      const result = [];
+      const seenSubWf = new Set();
+      for (const si of reversed) {
+        if (!si.sub_workflow_step_id) {
+          result.push({ type: 'step', si });
+        } else {
+          const key = si.sub_workflow_step_id;
+          if (!seenSubWf.has(key)) {
+            seenSubWf.add(key);
+            const subs = this.stepInstances.filter(s => s.sub_workflow_step_id === key);
+            let status = 'complete';
+            if (subs.some(s => s.status === 'active')) status = 'active';
+            else if (!subs.every(s => s.status === 'complete')) status = 'pending';
+            result.push({
+              type: 'subwf',
+              key,
+              name: si.sub_workflow_name || 'Sub-workflow',
+              steps: subs,
+              status,
+            });
+          }
+        }
+      }
+      return result.reverse();
+    },
+
     async deleteTask(taskId) {
       if (!confirm('Delete this task permanently? This cannot be undone.')) return;
       const resp = await fetch(`/tasks/${taskId}`, { method: 'DELETE' });
@@ -67,6 +95,7 @@ function workflowEditor() {
     activeId: null,
     activeWorkflow: null,
     modalOpen: false,
+    playbookModalOpen: false,
     openMenuId: null,
     renamingId: null,
     renameValue: '',
@@ -121,10 +150,32 @@ function workflowEditor() {
       history.replaceState(null, '', `/workflows/${this.activeId}`);
     },
 
+    closePlaybookModal() {
+      this.playbookModalOpen = false;
+      this.playbookEdit = { editing: false, draft: '' };
+    },
+
+    playbookEdit: { editing: false, draft: '' },
+
+    startPlaybookEdit() {
+      this.playbookEdit.draft = this.activeWorkflow.playbook || '';
+      this.playbookEdit.editing = true;
+    },
+
+    cancelPlaybookEdit() {
+      this.playbookEdit.editing = false;
+    },
+
+    async savePlaybookEdit() {
+      const ok = await this.saveWorkflowPlaybook(this.activeId, this.playbookEdit.draft);
+      if (ok) this.playbookEdit.editing = false;
+    },
+
     async selectWorkflow(id) {
       if (this.activeId === id) return;
       this.activeId = id;
       this.modalOpen = false;
+      this.playbookModalOpen = false;
       history.pushState(null, '', `/workflows/${id}`);
 
       const resp = await fetch(`/workflows/${id}/graph`);
@@ -180,6 +231,18 @@ function workflowEditor() {
         }
       }
       this.cancelRename();
+    },
+
+    async saveWorkflowPlaybook(id, playbook) {
+      const resp = await fetch(`/workflows/${id}/playbook`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playbook }),
+      });
+      if (resp.ok && this.activeWorkflow && this.activeWorkflow.id === id) {
+        this.activeWorkflow = { ...this.activeWorkflow, playbook };
+      }
+      return resp.ok;
     },
 
     async copyWorkflow(id) {
@@ -311,12 +374,26 @@ function workflowEditor() {
       // Build Mermaid flowchart definition (top-to-bottom)
       let def = 'flowchart TB\n';
 
+      // Style sub-workflow nodes with a distinct accent colour
+      def += '  classDef subwf fill:#1a3a4a,stroke:#00a3ff,stroke-width:2px,color:#e0f4ff\n';
+
       // Add nodes — sanitize names for Mermaid IDs
+      // Sub-workflow steps use [[label]] (subroutine shape) to distinguish them visually
+      const subwfNodeIds = [];
       steps.forEach(s => {
         const nodeId = `step_${s.id}`;
         const label = escapeHtml(s.name);
-        def += `  ${nodeId}["${label}"]\n`;
+        if (s.sub_workflow_id) {
+          def += `  ${nodeId}[["⤵ ${label}"]]\n`;
+          subwfNodeIds.push(nodeId);
+        } else {
+          def += `  ${nodeId}["${label}"]\n`;
+        }
       });
+
+      if (subwfNodeIds.length > 0) {
+        def += `  class ${subwfNodeIds.join(',')} subwf\n`;
+      }
 
       // Add edges, grouping parallel forks into Mermaid's `A --> B & C` syntax
       if (edges.length > 0) {
@@ -420,6 +497,9 @@ function stepDetail() {
     prevSteps: [],
     nextSteps: [],
     libraryEntryId: null,
+    subWorkflowId: null,
+    subWorkflowName: null,
+    subWorkflowPlaybook: '',
     editing: { playbook: false },
     drafts:  { playbook: '' },
     errors:  {},

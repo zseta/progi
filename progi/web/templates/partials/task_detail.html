@@ -93,46 +93,129 @@
       </template>
       <template x-if="stepInstances.length > 0">
         <div class="flex flex-col gap-2">
-          <template x-for="si in stepInstances" :key="si.id">
-            <div class="rounded-lg bg-surface-1 px-3 py-2 flex flex-col gap-1.5">
-              <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-1.5 min-w-0">
-                  <span class="text-xs font-medium text-primary truncate" x-text="si.step_id ? si.step_name : ('Adhoc step' + (si.output && si.output.name ? ' \u2013 ' + si.output.name : ''))"></span>
-                  <template x-if="si.step_id">
-                    <a
-                      :href="`/workflows/${task.workflow_id}/steps/${si.step_id}`"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="text-faint hover:text-primary transition-colors shrink-0"
-                      title="Open step"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                        <polyline points="15 3 21 3 21 9"/>
-                        <line x1="10" y1="14" x2="21" y2="3"/>
-                      </svg>
-                    </a>
+          <template x-for="item in items" :key="item.type === 'step' ? ('s' + item.si.id) : ('w' + item.key)">
+            <div>
+
+              {# ── Regular / adhoc step ── #}
+              <template x-if="item.type === 'step'">
+                <div class="rounded-lg bg-surface-1 px-3 py-2 flex flex-col gap-1.5">
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      <span class="text-xs font-medium text-primary truncate" x-text="item.si.step_id ? item.si.step_name : ('Adhoc step' + (item.si.output && item.si.output.name ? ' \u2013 ' + item.si.output.name : ''))"></span>
+                      <template x-if="item.si.step_id">
+                        <a
+                          :href="`/workflows/${task.workflow_id}/steps/${item.si.step_id}`"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-faint hover:text-primary transition-colors shrink-0"
+                          title="Open step"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                            <polyline points="15 3 21 3 21 9"/>
+                            <line x1="10" y1="14" x2="21" y2="3"/>
+                          </svg>
+                        </a>
+                      </template>
+                    </div>
+                    <span
+                      class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
+                      :class="{
+                        'bg-surface-3 text-faint':        item.si.status === 'pending',
+                        'bg-accent-dim text-accent':      item.si.status === 'active',
+                        'bg-green-900/40 text-green-400': item.si.status === 'complete',
+                      }"
+                      x-text="item.si.status"
+                    ></span>
+                  </div>
+                  <template x-if="item.si.completed_at">
+                    <p class="text-xs text-ghost" x-text="'Completed ' + new Date(item.si.completed_at).toLocaleString()"></p>
+                  </template>
+                  <template x-if="item.si.output">
+                    <details class="mt-1">
+                      <summary class="text-xs text-faint cursor-pointer hover:text-secondary select-none">Output</summary>
+                      <pre class="mt-1.5 text-xs text-secondary bg-surface-2 rounded p-2 overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(item.si.output, null, 2)"></pre>
+                    </details>
                   </template>
                 </div>
-                <span
-                  class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
-                  :class="{
-                    'bg-surface-3 text-faint':        si.status === 'pending',
-                    'bg-accent-dim text-accent':      si.status === 'active',
-                    'bg-green-900/40 text-green-400': si.status === 'complete',
-                  }"
-                  x-text="si.status"
-                ></span>
-              </div>
-              <template x-if="si.completed_at">
-                <p class="text-xs text-ghost" x-text="'Completed ' + new Date(si.completed_at).toLocaleString()"></p>
               </template>
-              <template x-if="si.output">
-                <details class="mt-1">
-                  <summary class="text-xs text-faint cursor-pointer hover:text-secondary select-none">Output</summary>
-                  <pre class="mt-1.5 text-xs text-secondary bg-surface-2 rounded p-2 overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(si.output, null, 2)"></pre>
-                </details>
+
+              {# ── Sub-workflow accordion ── #}
+              <template x-if="item.type === 'subwf'">
+                <div
+                  x-data="{ expanded: item.status === 'active' }"
+                  class="rounded-lg bg-surface-1 overflow-hidden"
+                >
+                  <button
+                    type="button"
+                    @click="expanded = !expanded"
+                    class="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-surface-3 transition-colors text-left"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      class="size-3 text-faint transition-transform duration-150 shrink-0"
+                      :class="expanded ? 'rotate-180' : ''"
+                      viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                    ><polyline points="6 9 12 15 18 9"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="size-3 text-accent shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <span class="text-xs text-accent font-medium truncate" x-text="item.name"></span>
+                    <span
+                      class="ml-auto inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
+                      :class="{
+                        'bg-surface-3 text-faint':        item.status === 'pending',
+                        'bg-accent-dim text-accent':      item.status === 'active',
+                        'bg-green-900/40 text-green-400': item.status === 'complete',
+                      }"
+                      x-text="item.status"
+                    ></span>
+                  </button>
+                  <div x-show="expanded" class="border-t border-subtle flex flex-col gap-1.5 p-2">
+                    <template x-for="sub in item.steps" :key="sub.id">
+                      <div class="rounded-lg bg-surface-0 px-3 py-2 flex flex-col gap-1">
+                        <div class="flex items-center justify-between gap-2">
+                          <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="text-xs font-medium text-secondary truncate" x-text="sub.step_name"></span>
+                            <template x-if="sub.step_id && sub.sub_workflow_id">
+                              <a
+                                :href="`/workflows/${sub.sub_workflow_id}/steps/${sub.step_id}`"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                class="text-faint hover:text-primary transition-colors shrink-0"
+                                title="Open step"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                                  <polyline points="15 3 21 3 21 9"/>
+                                  <line x1="10" y1="14" x2="21" y2="3"/>
+                                </svg>
+                              </a>
+                            </template>
+                          </div>
+                          <span
+                            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium shrink-0"
+                            :class="{
+                              'bg-surface-3 text-faint':        sub.status === 'pending',
+                              'bg-accent-dim text-accent':      sub.status === 'active',
+                              'bg-green-900/40 text-green-400': sub.status === 'complete',
+                            }"
+                            x-text="sub.status"
+                          ></span>
+                        </div>
+                        <template x-if="sub.completed_at">
+                          <p class="text-xs text-ghost" x-text="'Completed ' + new Date(sub.completed_at).toLocaleString()"></p>
+                        </template>
+                        <template x-if="sub.output">
+                          <details class="mt-0.5">
+                            <summary class="text-xs text-faint cursor-pointer hover:text-secondary select-none">Output</summary>
+                            <pre class="mt-1 text-xs text-secondary bg-surface-2 rounded p-2 overflow-x-auto whitespace-pre-wrap" x-text="JSON.stringify(sub.output, null, 2)"></pre>
+                          </details>
+                        </template>
+                      </div>
+                    </template>
+                  </div>
+                </div>
               </template>
+
             </div>
           </template>
         </div>

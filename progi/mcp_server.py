@@ -40,6 +40,7 @@ def _monitoring_url(path: str = "") -> str:
 
 _PROMPTS_DIR = Path(__file__).parent / "prompts"
 _WORKFLOW_SKELETON_MD = _PROMPTS_DIR / "workflow_skeleton.md"
+_WORKFLOW_PLAYBOOK_MD = _PROMPTS_DIR / "workflow_playbook.md"
 
 
 # ---------------------------------------------------------------------------
@@ -203,20 +204,25 @@ def get_process_skeleton_prompt() -> str:
 
 
 @mcp.tool(title="Save Workflow")
-def save_workflow(skeleton: dict, playbooks_by_step: dict) -> dict:
+def save_workflow(skeleton: dict, playbooks_by_step: dict, workflow_playbook: str = "") -> dict:
     """Persist a new workflow, its steps, and playbooks.
 
     Intended call sequence:
     1. get_process_skeleton_prompt → work with user to produce and approve skeleton JSON.
-    2. Generate all step playbooks silently using the Pass 2 instructions in that prompt.
-    3. Call save_workflow(skeleton, playbooks_by_step) with all playbooks collected.
+    2. Generate all step playbooks and the workflow playbook silently using the Pass 2
+       instructions in that prompt.
+    3. Call save_workflow(skeleton, playbooks_by_step, workflow_playbook) with everything.
 
     skeleton: the workflow skeleton dict (name, description, steps[]).
+              Steps may include "sub_workflow_id": <int> to embed another workflow as a step.
     playbooks_by_step: mapping of step name → playbook markdown string.
+                       Omit entries for sub-workflow steps (they have no playbook).
+    workflow_playbook: the workflow-level playbook markdown (Purpose / Input / Output sections).
+                       Required for workflows that may be used as sub-workflow steps.
 
     After saving, always show the user the monitoring_url from the response.
     """
-    result = db.save_workflow(_cfg, skeleton, playbooks_by_step)
+    result = db.save_workflow(_cfg, skeleton, playbooks_by_step, workflow_playbook or None)
     workflow_id = result.pop("id", None)
     for step in result.get("steps", []):
         step.pop("id", None)
@@ -255,6 +261,7 @@ def add_step(
     playbook: str = "",
     requires_approval: bool = False,
     reorder: bool = True,
+    sub_workflow_id: int = 0,
 ) -> dict:
     """Insert a new step into an existing workflow.
 
@@ -272,6 +279,10 @@ def add_step(
     4. The function rewires edges so the new step is connected to its immediate
        predecessor and successor by order.
 
+    sub_workflow_id: if non-zero, this step embeds another workflow. The step name
+                     defaults to the referenced workflow's name. The referenced workflow
+                     must have a playbook defined. Mutually exclusive with ``playbook``.
+
     Returns the newly created step dict.
     """
     return db.add_step_to_workflow(
@@ -281,8 +292,31 @@ def add_step(
         order=order,
         playbook=playbook or None,
         requires_approval=requires_approval,
+        sub_workflow_id=sub_workflow_id or None,
         reorder=reorder,
     )
+
+
+@mcp.tool(title="Edit Workflow Playbook")
+def edit_workflow_playbook(workflow_id: int, playbook: str = "") -> dict:
+    """Set or replace the workflow-level playbook (Purpose / Input / Output).
+
+    The workflow playbook is required for a workflow to be usable as a
+    sub-workflow step inside another workflow.
+
+    1. Call get_workflow(workflow_id) to read the current state.
+    2. If the user seems unsure about the structure or content, omit `playbook`
+       (or pass an empty string) — this returns the authoring guide so you can
+       help them draft it before saving.
+    3. Once the content is ready, show the user a preview and get confirmation
+       if changing an existing playbook.
+    4. Call edit_workflow_playbook again with the final markdown content.
+
+    Returns the authoring guide (when playbook is empty) or the updated workflow record.
+    """
+    if not playbook:
+        return {"authoring_guide": _WORKFLOW_PLAYBOOK_MD.read_text()}
+    return db.update_workflow_playbook(_cfg, workflow_id, playbook)
 
 
 @mcp.tool(title="Edit Step")
